@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aviator Genius - Home</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root { --primary: #007bff; --bg: #030712; --accent: #e11d48; --gold: #fbbf24; --success: #2ecc71; }
+        body { 
+            background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; 
+            margin: 0; padding: 0; overflow-x: hidden;
+        }
+
+        /* Top Profile Header */
+        .top-nav {
+            padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .user-pill {
+            background: #1e293b; padding: 6px 14px; border-radius: 50px;
+            display: flex; align-items: center; gap: 10px; font-size: 0.85rem;
+            cursor: pointer; border: 1px solid rgba(255,255,255,0.1);
+            transition: 0.3s;
+        }
+        .user-pill:active { transform: scale(0.95); }
+        
+        .nav-avatar {
+            width: 28px; height: 28px; border-radius: 50%;
+            object-fit: cover; border: 1px solid var(--primary);
+            background: #0f172a;
+        }
+
+        /* Balance Section */
+        .hero-section { padding: 25px; text-align: center; position: relative; }
+        .bal-label { font-size: 0.8rem; color: #94a3b8; letter-spacing: 2px; }
+        .bal-amount { font-size: 3rem; font-weight: 800; margin: 5px 0; color: #fff; text-shadow: 0 0 20px rgba(0,123,255,0.4); }
+        
+        #bonus-banner {
+            background: linear-gradient(90deg, #9333ea, #e11d48);
+            margin: 0 20px; padding: 12px; border-radius: 12px;
+            text-align: center; font-weight: bold; font-size: 0.85rem;
+            animation: pulse 2s infinite; display: none;
+        }
+        @keyframes pulse { 0% { opacity: 0.8; } 50% { opacity: 1; } 100% { opacity: 0.8; } }
+
+        #admin-gate { display: none; text-align: center; cursor: pointer; color: var(--gold); }
+
+        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 20px; }
+        .grid-item {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1);
+            padding: 20px; border-radius: 20px; text-align: center; transition: 0.3s;
+        }
+        .grid-item:active { transform: scale(0.95); background: rgba(255,255,255,0.1); }
+        .grid-item i { font-size: 1.8rem; margin-bottom: 10px; display: block; }
+        .deposit-icon { color: #2ecc71; }
+        .withdraw-icon { color: #f43f5e; }
+        .history-icon { color: #60a5fa; }
+        .support-icon { color: var(--gold); }
+
+        .play-card {
+            margin: 10px 20px; background: linear-gradient(135deg, #0f172a 0%, #000 100%);
+            border: 2px solid var(--accent); border-radius: 24px; padding: 30px;
+            text-align: center; position: relative; overflow: hidden;
+            box-shadow: 0 15px 35px rgba(225,29,72,0.3);
+        }
+        .play-btn {
+            background: var(--accent); color: white; border: none;
+            padding: 15px 40px; border-radius: 12px; font-weight: 900;
+            font-size: 1.2rem; margin-top: 15px; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(225,29,72,0.5);
+        }
+        .plane-anim {
+            position: absolute; right: -20px; top: 10px; font-size: 3rem;
+            opacity: 0.1; transform: rotate(-45deg); animation: fly 4s linear infinite;
+        }
+        @keyframes fly { 0% { right: -50px; } 100% { right: 110%; } }
+
+        /* REPEATING BOT WINNER LIST */
+        .live-ticker-container {
+            background: #000; height: 40px; border-top: 1px solid #1a1f2e;
+            position: fixed; bottom: 0; width: 100%; overflow: hidden;
+            display: flex; align-items: center;
+        }
+        .ticker-wrap { display: flex; white-space: nowrap; padding-left: 100%; animation: ticker 40s linear infinite; }
+        .ticker-item { display: inline-block; padding: 0 25px; font-size: 0.75rem; color: #94a3b8; }
+        .win-amt { color: var(--success); font-weight: bold; }
+        
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-nav">
+        <div class="user-pill" onclick="location.href='profile.html'">
+            <img id="user-avatar" src="https://ui-avatars.com/api/?name=U&background=007bff&color=fff" class="nav-avatar">
+            <span id="username">Loading...</span>
+        </div>
+        
+        <div id="admin-gate" onclick="location.href='admin-shield.html'">
+            <i class="fa-solid fa-shield-halved"></i>
+            <div style="font-size: 0.6rem; font-weight: bold;">ADMIN</div>
+        </div>
+
+        <i class="fa-solid fa-right-from-bracket" onclick="logout()" style="opacity: 0.6; font-size: 1.2rem; cursor: pointer;"></i>
+    </div>
+
+    <div class="hero-section">
+        <div class="bal-label">TOTAL PORTFOLIO</div>
+        <div class="bal-amount">₦<span id="balance">0.00</span></div>
+    </div>
+
+    <div id="bonus-banner">🔥 600% BONUS ON YOUR NEXT DEPOSIT 🔥</div>
+
+    <div class="play-card">
+        <i class="fa-solid fa-plane plane-anim"></i>
+        <h2>AVIATOR ELITE</h2>
+        <p style="font-size: 0.8rem; opacity: 0.7;">Predict the curve to win big</p>
+        <button class="play-btn" onclick="location.href='game.html'">PLAY NOW</button>
+    </div>
+
+    <div class="grid-container">
+        <div class="grid-item" onclick="location.href='deposit.html'">
+            <i class="fa-solid fa-wallet deposit-icon"></i><span style="font-weight: bold;">Deposit</span>
+        </div>
+        <div class="grid-item" onclick="location.href='withdraw.html'">
+            <i class="fa-solid fa-money-bill-transfer withdraw-icon"></i><span style="font-weight: bold;">Withdraw</span>
+        </div>
+        <div class="grid-item" onclick="location.href='history.html'">
+            <i class="fa-solid fa-clock-rotate-left history-icon"></i><span style="font-weight: bold;">History</span>
+        </div>
+        <div class="grid-item" onclick="location.href='support.html'">
+            <i class="fa-solid fa-headset support-icon"></i><span style="font-weight: bold;">Support</span>
+        </div>
+    </div>
+
+    <div class="live-ticker-container">
+        <div class="ticker-wrap" id="ticker-content">
+            </div>
+    </div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+
+        window.onload = function() {
+            if(!userEmail) { location.href='login.html'; return; }
+            _supa = getClient();
+            
+            if(localStorage.getItem('user_role') === 'ADMIN') {
+                document.getElementById('admin-gate').style.display = 'block';
+            }
+
+            loadData();
+            setInterval(loadData, 10000);
+            generateLiveWins(); // Start the bot winners list
+            setInterval(generateLiveWins, 30000); // Refresh list every 30s
+        };
+
+        async function loadData() {
+            var { data } = await _supa.from('profiles').select('*').eq('email', userEmail).single();
+            if(data) {
+                document.getElementById('balance').innerText = parseFloat(data.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2});
+                document.getElementById('username').innerText = userEmail.split('@')[0].toUpperCase();
+                if(data.avatar_url) document.getElementById('user-avatar').src = data.avatar_url;
+                
+                localStorage.setItem('user_role', data.role);
+                document.getElementById('admin-gate').style.display = data.role === 'ADMIN' ? 'block' : 'none';
+                document.getElementById('bonus-banner').style.display = data.first_deposit_done === false ? 'block' : 'none';
+            }
+        }
+
+        function generateLiveWins() {
+            const ticker = document.getElementById('ticker-content');
+            let content = '';
+            // Generate 20 random bot wins
+            for(let i=0; i<20; i++) {
+                const botId = String.fromCharCode(65 + Math.floor(Math.random() * 26)) + "***" + Math.floor(Math.random() * 9);
+                const winAmt = (Math.random() * 50000 + 500).toLocaleString('en-US', {maximumFractionDigits: 0});
+                content += `<div class="ticker-item">User ${botId} just won <span class="win-amt">₦${winAmt}</span>!</div> • `;
+            }
+            ticker.innerHTML = content + content; // Double it for seamless loop
+        }
+
+        function logout() { localStorage.clear(); location.href = 'login.html'; }
+    </script>
+</body>
+</html>
