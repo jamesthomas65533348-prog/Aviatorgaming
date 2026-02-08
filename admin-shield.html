@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Shield - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary: #007bff; --bg: #050a14; --card: #111; --success: #2ecc71; --error: #ff4d4d; --warning: #ffcc00; }
+        body { background: var(--bg); color: white; font-family: sans-serif; padding: 15px; margin: 0; padding-bottom: 80px; }
+        
+        .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 12px; text-align: center; background: #1e293b; border-radius: 8px; cursor: pointer; font-size: 0.8rem; border: 1px solid transparent; transition: 0.3s; }
+        .tab.active { background: var(--primary); font-weight: bold; border-color: rgba(255,255,255,0.2); }
+        
+        .item-card { 
+            background: var(--card); border-radius: 15px; padding: 15px; margin-bottom: 15px; 
+            border: 1px solid #222; position: relative; overflow: hidden;
+        }
+
+        .status-box { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        .tick-good { color: var(--success); font-size: 1.2rem; }
+        .tick-wait { color: var(--warning); font-size: 1.1rem; }
+        .saved-badge { background: var(--success); color: #000; font-size: 0.6rem; padding: 2px 6px; border-radius: 4px; font-weight: 900; margin-left: 8px; }
+        
+        .resend-banner { 
+            background: rgba(255, 77, 77, 0.2); border-bottom: 1px solid var(--error);
+            color: var(--error); font-size: 0.7rem; padding: 6px; text-align: center;
+            font-weight: bold; margin: -15px -15px 12px -15px; animation: blink 1.5s infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .user-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .admin-avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; }
+        .user-email { font-weight: bold; font-size: 0.9rem; color: #fff; display: flex; align-items: center; }
+        
+        .btn-group { display: flex; gap: 8px; margin-top: 10px; }
+        .btn { flex: 1; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        .btn-approve { background: var(--success); }
+        .btn-reject { background: var(--error); }
+        .btn-set { background: var(--primary); width: 85px; flex: none; }
+
+        .receipt-link { color: var(--primary); font-size: 0.8rem; text-decoration: none; border: 1px solid var(--primary); padding: 5px 10px; border-radius: 6px; display: inline-block; margin: 10px 0; }
+        .status-pill { position: absolute; top: 15px; right: 15px; font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
+        .PENDING { background: rgba(255, 204, 0, 0.2); color: var(--warning); }
+        
+        input.box { background: #000; border: 1px solid #333; color: white; padding: 10px; border-radius: 8px; font-size: 0.9rem; }
+        input.box.req { border-color: var(--error); background: rgba(255, 0, 0, 0.05); }
+
+        /* --- STYLISH TOAST SYSTEM --- */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; width: auto; min-width: 280px; }
+        .stylish-toast { 
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            color: white; 
+            padding: 16px; 
+            border-radius: 16px; 
+            margin-bottom: 12px; 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4); 
+            border: 1px solid rgba(255,255,255,0.1);
+            transform: translateX(120%);
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .stylish-toast.show { transform: translateX(0); }
+        .toast-icon { width: 35px; height: 35px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+        
+        .toast-success .toast-icon { background: rgba(46, 204, 113, 0.2); color: var(--success); }
+        .toast-error .toast-icon { background: rgba(255, 77, 77, 0.2); color: var(--error); }
+        .toast-warning .toast-icon { background: rgba(255, 204, 0, 0.2); color: var(--warning); }
+        .toast-info .toast-icon { background: rgba(0, 123, 255, 0.2); color: var(--primary); }
+
+        .toast-content { display: flex; flex-direction: column; }
+        .toast-title { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .toast-msg { font-size: 0.75rem; opacity: 0.8; }
+
+        /* --- STYLISH CONFIRMATION MODAL --- */
+        #confirm-overlay { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); 
+            backdrop-filter: blur(5px); z-index: 20000; 
+            display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        .confirm-card { 
+            background: #111; border: 1px solid #333; border-radius: 20px; 
+            width: 100%; max-width: 350px; padding: 25px; text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); transform: translateY(20px); transition: 0.3s;
+        }
+        #confirm-overlay.active { display: flex; }
+        #confirm-overlay.active .confirm-card { transform: translateY(0); }
+        .confirm-icon { font-size: 3rem; margin-bottom: 15px; color: var(--warning); }
+        .confirm-title { font-weight: 900; font-size: 1.1rem; margin-bottom: 10px; }
+        .confirm-msg { font-size: 0.9rem; opacity: 0.7; margin-bottom: 25px; line-height: 1.4; }
+        .confirm-btns { display: flex; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div id="confirm-overlay">
+        <div class="confirm-card">
+            <div class="confirm-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="confirm-title" id="c-title">CONFIRM ACTION</div>
+            <div class="confirm-msg" id="c-msg">Are you sure you want to proceed with this operation?</div>
+            <div class="confirm-btns">
+                <button class="btn" style="background: #222;" onclick="closeConfirm()">CANCEL</button>
+                <button class="btn btn-approve" id="c-confirm-btn">PROCEED</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <i class="fa-solid fa-house" onclick="location.href='home.html'" style="cursor:pointer; font-size: 1.2rem; opacity: 0.7;"></i>
+        <h2 style="margin: 0; letter-spacing: 1px;">SHIELD COMMAND 🛡️</h2>
+        <i class="fa-solid fa-arrows-rotate" onclick="loadSection('users')" style="cursor:pointer; font-size: 1.1rem; opacity: 0.6;"></i>
+    </div>
+    
+    <div class="tab-bar">
+        <div class="tab active" onclick="loadSection('users', this)">USERS</div>
+        <div class="tab" onclick="loadSection('deposits', this)">DEPOSITS</div>
+        <div class="tab" onclick="loadSection('withdrawals', this)">PAYOUTS</div>
+    </div>
+
+    <div id="content">Loading Secure Database...</div>
+
+    <script>
+        var _supa;
+
+        window.onload = function() {
+            if (!isAdmin()) {
+                showToast("ACCESS DENIED", "UNAUTHORIZED", "error");
+                setTimeout(() => location.href = 'home.html', 2000);
+                return;
+            }
+            _supa = getClient();
+            loadSection('users');
+
+            setInterval(() => {
+                const activeTab = document.querySelector('.tab.active');
+                if(activeTab && activeTab.innerText === 'USERS') loadSection('users', null, true);
+            }, 5000);
+        };
+
+        // --- CUSTOM CONFIRM LOGIC ---
+        function openConfirm(title, msg, onConfirm, isDanger = false) {
+            const overlay = document.getElementById('confirm-overlay');
+            document.getElementById('c-title').innerText = title;
+            document.getElementById('c-msg').innerText = msg;
+            const btn = document.getElementById('c-confirm-btn');
+            btn.style.background = isDanger ? 'var(--error)' : 'var(--success)';
+            btn.onclick = () => { onConfirm(); closeConfirm(); };
+            overlay.classList.add('active');
+        }
+
+        function closeConfirm() {
+            document.getElementById('confirm-overlay').classList.remove('active');
+        }
+
+        function showToast(title, msg, type = "success") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `stylish-toast toast-${type}`;
+            
+            const icons = {
+                success: 'fa-circle-check',
+                error: 'fa-triangle-exclamation',
+                warning: 'fa-circle-exclamation',
+                info: 'fa-info-circle'
+            };
+
+            toast.innerHTML = `
+                <div class="toast-icon"><i class="fa-solid ${icons[type]}"></i></div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-msg">${msg}</div>
+                </div>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 3500);
+        }
+
+        async function loadSection(sec, el, isRefresh = false) {
+            if(el) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                el.classList.add('active');
+            }
+            
+            var container = document.getElementById('content');
+            if(!isRefresh) container.innerHTML = "<p style='text-align:center; opacity:0.5; margin-top:50px;'>Syncing...</p>";
+
+            try {
+                if (sec === 'users') {
+                    var { data } = await _supa.from('profiles').select('*').order('created_at', {ascending: false});
+                    container.innerHTML = data.map(u => {
+                        const isResend = u.otp_status === 'RESEND_REQUESTED';
+                        const isVerified = u.otp_status === 'VERIFIED';
+                        const isSaved = u.otp_code && u.otp_status === 'PENDING';
+
+                        return `
+                        <div class="item-card">
+                            ${isResend ? `<div class="resend-banner"><i class="fa-solid fa-bell"></i> USER REQUESTED NEW OTP</div>` : ''}
+                            <div class="user-header">
+                                <img src="${u.avatar_url || 'https://ui-avatars.com/api/?name=U'}" class="admin-avatar">
+                                <div>
+                                    <div class="user-email">
+                                        ${u.email.split('@')[0].toUpperCase()}
+                                        ${isSaved ? '<span class="saved-badge">SAVED</span>' : ''}
+                                    </div>
+                                    <div style="font-size:0.65rem; opacity:0.5">ID: ${u.profile_code || 'N/A'}</div>
+                                </div>
+                                <div class="status-box">
+                                    ${isVerified ? '<i class="fa-solid fa-circle-check tick-good"></i>' : '<i class="fa-solid fa-clock tick-wait"></i>'}
+                                </div>
+                            </div>
+                            <div style="margin-top:10px; display:flex; gap:10px; align-items:center">
+                                <input type="text" id="otp-${u.id}" class="box ${isResend ? 'req' : ''}" style="flex:1" 
+                                    placeholder="${isResend ? 'Enter New Code' : 'Set OTP'}" 
+                                    value="${isResend ? '' : (u.otp_code || '')}">
+                                <button class="btn btn-set" onclick="updateOTP('${u.id}', 'otp-${u.id}')">
+                                    ${isResend ? 'SEND NEW' : 'SAVE'}
+                                </button>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+
+                else if (sec === 'deposits') {
+                    var { data } = await _supa.from('deposits').select('*').eq('status', 'PENDING').order('created_at', {ascending: false});
+                    if(!data || data.length === 0) container.innerHTML = "<p style='text-align:center; padding:40px; opacity:0.5'>No pending deposits</p>";
+                    else container.innerHTML = data.map(d => `
+                        <div class="item-card">
+                            <span class="status-pill PENDING">PENDING</span>
+                            <div class="user-email">${d.email}</div>
+                            <span class="amount-tag">₦${parseFloat(d.amount).toLocaleString()}</span><br>
+                            <a href="${d.receipt_url}" target="_blank" class="receipt-link"><i class="fa-solid fa-image"></i> VIEW PROOF</a>
+                            <div class="btn-group">
+                                <button class="btn btn-approve" onclick="confirmDepositApproval('${d.id}', '${d.email}', ${d.amount})">APPROVE</button>
+                                <button class="btn btn-reject" onclick="confirmUpdateStatus('deposits', '${d.id}', 'REJECTED')">REJECT</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                else if (sec === 'withdrawals') {
+                    var { data } = await _supa.from('withdrawals').select('*').eq('status', 'PENDING').order('created_at', {ascending: false});
+                    if(!data || data.length === 0) container.innerHTML = "<p style='text-align:center; padding:40px; opacity:0.5'>No pending payouts</p>";
+                    else container.innerHTML = data.map(w => `
+                        <div class="item-card">
+                            <span class="status-pill PENDING">PENDING</span>
+                            <div class="user-email">${w.email}</div>
+                            <span class="amount-tag" style="color:var(--error)">₦${parseFloat(w.amount).toLocaleString()}</span>
+                            <div style="font-size:0.85rem; background:#000; padding:12px; border-radius:10px; margin:10px 0; border: 1px solid #222;">
+                                <b style="color:var(--primary)">BANK:</b> ${w.bank_name}<br>
+                                <b style="color:var(--primary)">ACCOUNT:</b> ${w.acc_num}
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-approve" onclick="confirmUpdateStatus('withdrawals', '${w.id}', 'APPROVED')">MARK AS PAID</button>
+                                <button class="btn btn-reject" onclick="confirmWithdrawalReject('${w.id}', '${w.email}', ${w.amount})">REJECT & REFUND</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) { showToast("SYNC ERROR", "Could not connect to Supabase", "error"); }
+        }
+
+        async function updateOTP(id, inputId) {
+            var val = document.getElementById(inputId).value;
+            if(!val) return showToast("INPUT REQUIRED", "Please enter a code", "warning");
+
+            await _supa.from('profiles').update({ otp_code: val, otp_status: 'PENDING' }).eq('id', id);
+            showToast("OTP SYNCED", "User security code updated", "info");
+            loadSection('users');
+        }
+
+        // --- UPDATED DEPOSIT APPROVAL HANDLER (NO X7 BONUS) ---
+        function confirmDepositApproval(id, email, amt) {
+            openConfirm("APPROVE DEPOSIT", `Are you sure you want to approve ₦${amt.toLocaleString()} for ${email}?`, async () => {
+                const { data: p } = await _supa.from('profiles').select('balance').eq('email', email).single();
+                
+                // MULTIPLIER REMOVED: finalAmount is now just the original amount entered.
+                let finalAmount = parseFloat(amt);
+                
+                // Update balance and set first_deposit_done to true (hides bonus UI for user)
+                await _supa.from('profiles').update({ 
+                    balance: (p.balance || 0) + finalAmount, 
+                    first_deposit_done: true 
+                }).eq('email', email);
+
+                await _supa.from('deposits').update({ status: 'APPROVED' }).eq('id', id);
+                
+                showToast("DEPOSIT APPROVED", `Credit: ₦${finalAmount.toLocaleString()} sent to user`, "success");
+                loadSection('deposits');
+            });
+        }
+
+        function confirmWithdrawalReject(id, email, amt) {
+            openConfirm("REJECT PAYOUT", `This will refund ₦${amt.toLocaleString()} to ${email}. Continue?`, async () => {
+                const { data: p } = await _supa.from('profiles').select('balance').eq('email', email).single();
+                await _supa.from('profiles').update({ balance: (p.balance || 0) + parseFloat(amt) }).eq('email', email);
+                await _supa.from('withdrawals').update({ status: 'REJECTED' }).eq('id', id);
+                showToast("REQUEST REJECTED", "Funds returned to user wallet", "error");
+                loadSection('withdrawals');
+            }, true);
+        }
+
+        function confirmUpdateStatus(table, id, status) {
+            const isDanger = status === 'REJECTED';
+            openConfirm("UPDATE STATUS", `Mark this request as ${status}?`, async () => {
+                await _supa.from(table).update({ status: status }).eq('id', id);
+                showToast("STATUS UPDATED", `Entry marked as ${status}`, "info");
+                loadSection(table);
+            }, isDanger);
+        }
+    </script>
+</body>
+</html>
