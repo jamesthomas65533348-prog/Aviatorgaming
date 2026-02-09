@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deposit - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root { --primary: #007bff; --bg: #0a0e17; --success: #2ecc71; --error: #ff4d4d; --warning: #ffcc00; --purple: #9333ea; }
+        body { background: var(--bg); color: white; font-family: sans-serif; padding: 20px; margin: 0; }
+
+        /* Stylish Small Video Card */
+        .video-wrapper {
+            max-width: 280px;
+            margin: 0 auto 25px auto;
+            position: relative;
+            padding: 3px;
+            background: linear-gradient(45deg, var(--primary), var(--purple));
+            border-radius: 18px;
+            box-shadow: 0 0 15px rgba(0, 123, 255, 0.3);
+        }
+
+        .video-box {
+            width: 100%;
+            background: #0f172a;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        video {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .video-tag {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #ff4d4d;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.6rem;
+            font-weight: 900;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .fs-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            z-index: 10;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: 0.3s;
+        }
+        .fs-icon:hover { background: var(--primary); transform: scale(1.1); }
+
+        .pulse {
+            width: 6px; height: 6px; background: white; border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        .play-hint {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,123,255,0.8);
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none;
+            transition: 0.3s;
+        }
+
+        .video-info {
+            padding: 8px;
+            font-size: 0.7rem;
+            text-align: center;
+            color: #94a3b8;
+            background: #1e293b;
+        }
+
+        .bonus-card {
+            background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%);
+            border-radius: 15px; padding: 15px; margin-bottom: 20px;
+            display: none; align-items: center; gap: 15px;
+            border: 1px solid rgba(255,255,255,0.2);
+            animation: glow 2s infinite alternate;
+        }
+        @keyframes glow { from { box-shadow: 0 0 5px var(--purple); } to { box-shadow: 0 0 15px var(--purple); } }
+
+        .bank-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px; padding: 20px; margin: 15px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .bank-label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+        .bank-value { font-size: 1.1rem; font-weight: bold; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .copy-btn {
+            background: rgba(255,255,255,0.05); border: none; color: var(--primary);
+            padding: 8px 12px; border-radius: 8px; cursor: pointer;
+        }
+        .copy-btn.copied { color: var(--success); }
+
+        .min-info {
+            background: rgba(255, 204, 0, 0.1); border-left: 4px solid var(--warning);
+            padding: 10px; font-size: 0.8rem; border-radius: 5px; margin-bottom: 15px; color: var(--warning);
+        }
+
+        input[type="number"] {
+            width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #334155;
+            background: #1e293b; color: white; font-size: 1.2rem; font-weight: bold; margin: 5px 0 15px 0; outline: none; box-sizing: border-box;
+        }
+
+        .upload-area {
+            border: 2px dashed #334155; border-radius: 15px; padding: 25px;
+            text-align: center; margin-bottom: 20px; cursor: pointer; background: rgba(255,255,255,0.02);
+        }
+
+        #submit-btn {
+            width: 100%; padding: 18px; background: var(--primary); color: white;
+            border: none; border-radius: 12px; font-weight: bold; font-size: 1.1rem; cursor: pointer;
+        }
+
+        .footer-brand {
+            margin-top: 40px; display: flex; flex-direction: column;
+            align-items: center; gap: 10px; padding-bottom: 20px; opacity: 0.8;
+        }
+
+        .xbet-logo-design {
+            display: flex; align-items: center; font-family: 'Arial Black', sans-serif;
+            font-weight: 900; font-size: 1.2rem; letter-spacing: -1px;
+        }
+        .logo-1 { color: #ffffff; }
+        .logo-x { color: #007bff; font-style: italic; font-size: 1.4rem; margin: 0 2px; }
+        .logo-bet { color: #ffffff; }
+        .owned-text { font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
+
+        #toast {
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%) scale(0.5);
+            padding: 15px 30px; border-radius: 50px; display: none; z-index: 9999;
+            color: white; font-weight: bold; box-shadow: 0 8px 25px rgba(0,0,0,0.4); opacity: 0;
+        }
+        .animate-in { display: block !important; animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes bounceIn { 0% { transform: translateX(-50%) scale(0.3); opacity: 0; } 100% { transform: translateX(-50%) scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <i class="fa-solid fa-arrow-left" style="cursor:pointer;" onclick="location.href='home.html'"></i>
+        <h2 style="margin:0;">Deposit</h2>
+    </div>
+    <p id="sub-title" style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 15px;">Secure funding center</p>
+
+    <div class="video-wrapper">
+        <div class="video-box">
+            <div class="video-tag"><div class="pulse"></div> GUIDE</div>
+            
+            <div class="fs-icon" onclick="goFullscreen(document.getElementById('tutorial-vid'))">
+                <i class="fa-solid fa-expand"></i>
+            </div>
+
+            <div id="play-icon" class="play-hint"><i class="fa-solid fa-play"></i></div>
+            
+            <video id="tutorial-vid" preload="metadata" playsinline webkit-playsinline onclick="goFullscreen(this)">
+                <source src="tutorial.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            
+            <div class="video-info">How to Fund Account (Video)</div>
+        </div>
+    </div>
+
+    <div id="bonus-banner" class="bonus-card">
+        <i class="fa-solid fa-gift" style="font-size: 2rem;"></i>
+        <div>
+            <div style="font-weight: bold; font-size: 0.9rem;">600% Bonus Active!</div>
+            <div style="font-size: 0.75rem; opacity: 0.9;">Multiplied by 7x instantly.</div>
+        </div>
+    </div>
+
+    <div class="bank-card">
+        <div class="bank-label">Deposit Destination</div>
+        <div class="bank-value">1XBET</div>
+
+        <div class="bank-label">Deposit ID</div>
+        <div class="bank-value">
+            <span id="acc-num">1559544385</span>
+            <button class="copy-btn" onclick="copyText('1559544385', this)">
+                <i class="fa-regular fa-copy"></i>
+            </button>
+        </div>
+
+        <div class="bank-label">Destination Name</div>
+        <div class="bank-value" style="margin-bottom:0;">Gaming Collective</div>
+    </div>
+
+    <div class="min-info">
+        <i class="fa-solid fa-circle-info"></i> Min: <b>₦1,000</b>
+    </div>
+
+    <label class="bank-label">Amount (₦)</label>
+    <input type="number" id="amount" placeholder="0.00">
+
+    <div class="upload-area" onclick="document.getElementById('file-input').click()">
+        <i class="fa-solid fa-camera" style="font-size: 1.5rem; color: var(--primary);"></i>
+        <p id="file-status" style="margin-top:10px; font-size:0.85rem;">Attach Payment Screenshot</p>
+        <input type="file" id="file-input" style="display:none" onchange="fileSelected()">
+    </div>
+
+    <button id="submit-btn" onclick="handleDeposit()">Complete Deposit</button>
+
+    <div class="footer-brand">
+        <div class="xbet-logo-design">
+            <span class="logo-1">1</span><span class="logo-x">X</span><span class="logo-bet">BET</span>
+        </div>
+        <div class="owned-text">Powered and Owned by 1XBET</div>
+    </div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+
+        // Aggressive Fullscreen Logic for Mobile
+        function goFullscreen(video) {
+            document.getElementById('play-icon').style.opacity = '0';
+            
+            // Try playing first as many browsers require it before FS
+            video.play();
+
+            if (video.requestFullscreen) {
+                video.requestFullscreen();
+            } else if (video.webkitEnterFullscreen) {
+                // For iOS/Safari
+                video.webkitEnterFullscreen();
+            } else if (video.webkitRequestFullscreen) {
+                video.webkitRequestFullscreen();
+            } else if (video.msRequestFullscreen) {
+                video.msRequestFullscreen();
+            }
+        }
+
+        window.onload = function() { 
+            _supa = getClient(); 
+            checkBonus();
+        };
+
+        async function checkBonus() {
+            var { data } = await _supa.from('profiles').select('first_deposit_done').eq('email', userEmail).single();
+            if(data && !data.first_deposit_done) {
+                document.getElementById('bonus-banner').style.display = 'flex';
+            }
+        }
+
+        function showToast(msg, isSuccess) {
+            var t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isSuccess ? "var(--success)" : "var(--error)";
+            t.className = "animate-in";
+            setTimeout(function(){ t.className = ""; t.style.display="none"; }, 3000);
+        }
+
+        function copyText(text, btn) {
+            navigator.clipboard.writeText(text);
+            var icon = btn.querySelector('i');
+            icon.className = "fa-solid fa-check";
+            btn.classList.add('copied');
+            showToast("Copied to Clipboard!", true);
+            setTimeout(function(){
+                icon.className = "fa-regular fa-copy";
+                btn.classList.remove('copied');
+            }, 2000);
+        }
+
+        function fileSelected() {
+            var file = document.getElementById('file-input').files[0];
+            if(file) document.getElementById('file-status').innerHTML = "✅ <b>" + file.name + "</b>";
+        }
+
+        async function handleDeposit() {
+            var amt = document.getElementById('amount').value;
+            var file = document.getElementById('file-input').files[0];
+            var btn = document.getElementById('submit-btn');
+
+            if(!amt || amt < 1000) return showToast("Minimum deposit is ₦1,000", false);
+            if(!file) return showToast("Upload payment receipt", false);
+
+            btn.disabled = true;
+            btn.innerText = "Processing...";
+
+            try {
+                var fileName = "dep_" + Date.now() + "_" + userEmail;
+                var upload = await _supa.storage.from('receipts').upload(fileName, file);
+                if(upload.error) throw upload.error;
+
+                var publicURL = _supa.storage.from('receipts').getPublicUrl(fileName).data.publicUrl;
+
+                var insert = await _supa.from('deposits').insert([
+                    { email: userEmail, amount: amt, receipt_url: publicURL, status: 'PENDING' }
+                ]);
+                if(insert.error) throw insert.error;
+
+                showToast("Sent for Approval!", true);
+                setTimeout(function(){ location.href = 'home.html'; }, 2000);
+            } catch (err) {
+                showToast("Error: " + err.message, false);
+                btn.disabled = false;
+                btn.innerText = "Complete Deposit";
+            }
+        }
+    </script>
+</body>
+</html>
