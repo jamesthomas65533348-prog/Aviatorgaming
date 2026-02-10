@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Withdraw - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root { --primary: #e11d48; --bg: #030712; --card: #111827; --success: #2ecc71; --warning: #ffcc00; --input-bg: #0f172a; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; padding: 20px; margin: 0; }
+
+        .balance-display {
+            background: linear-gradient(135deg, #1e293b 0%, #030712 100%);
+            padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .input-group { margin-bottom: 20px; }
+        label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; padding-left: 5px; }
+
+        input, select {
+            width: 100%; padding: 16px; border-radius: 12px; border: 1px solid #1e293b;
+            background: var(--input-bg); color: white; font-size: 1rem; outline: none; 
+            box-sizing: border-box; transition: 0.3s;
+        }
+
+        input:focus, select:focus { border-color: var(--primary); background: #161e31; }
+
+        .fee-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--warning);
+            margin-top: 8px;
+            padding: 0 5px;
+            font-weight: bold;
+        }
+
+        .withdraw-btn {
+            width: 100%; padding: 18px; background: var(--primary); color: white;
+            border: none; border-radius: 15px; font-weight: 900; font-size: 1.1rem;
+            cursor: pointer; box-shadow: 0 8px 20px rgba(225,29,72,0.3);
+            text-transform: uppercase; margin-top: 10px;
+        }
+
+        #pin-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        .pin-card { background: var(--card); padding: 35px; border-radius: 25px; width: 85%; text-align: center; border: 1px solid rgba(225,29,72,0.5); }
+        .pin-input { font-size: 2.5rem !important; letter-spacing: 15px; text-align: center; border-bottom: 2px solid var(--primary) !important; background: transparent !important; }
+
+        #toast {
+            position: fixed; top: 40px; left: 50%; transform: translateX(-50%) scale(0.5);
+            padding: 18px 30px; border-radius: 15px; display: none; z-index: 9999;
+            color: white; font-weight: bold; opacity: 0; text-align: center;
+            min-width: 280px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        }
+        .animate-in { display: block !important; animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes bounceIn { 0% { transform: translateX(-50%) scale(0.3); opacity: 0; } 100% { transform: translateX(-50%) scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+
+    <div id="pin-overlay">
+        <div class="pin-card">
+            <h3 id="pin-title" style="margin-top:0;">Secure PIN</h3>
+            <p id="pin-desc" style="font-size: 0.85rem; opacity: 0.7; margin-bottom: 25px;">Enter your 4-digit code to authorize</p>
+            <input type="password" id="pin-field" class="pin-input" maxlength="4" placeholder="****" inputmode="numeric">
+            <button class="withdraw-btn" id="confirm-pin-btn" onclick="confirmPINAction()" style="margin-top: 25px;">Authorize Now</button>
+            <p onclick="document.getElementById('pin-overlay').style.display='none'" style="margin-top:20px; font-size:0.9rem; opacity:0.5; cursor:pointer;">Close</p>
+        </div>
+    </div>
+
+    <div style="display: flex; align-items: center; margin-bottom: 25px;">
+        <i class="fa-solid fa-chevron-left" onclick="location.href='home.html'" style="cursor:pointer; font-size: 1.2rem; padding: 10px;"></i>
+        <h2 style="margin:0; flex:1; text-align:center; margin-right: 32px; font-weight: 800;">WITHDRAW</h2>
+    </div>
+
+    <div class="balance-display">
+        <div style="font-size: 0.75rem; opacity: 0.5; letter-spacing: 2px; margin-bottom: 5px;">AVAILABLE BALANCE</div>
+        <div style="font-size: 2.2rem; font-weight: 900; color: #fff;">₦<span id="current-bal">0.00</span></div>
+    </div>
+
+    <div class="input-group">
+        <label>Bank Provider</label>
+        <select id="bank-name">
+            <option value="">Choose your bank...</option>
+            <option value="OPay">OPay Digital(Unavailable)</option>
+            <option value="Palmpay">Palmpay</option>
+            <option value="Moniepoint">Moniepoint</option>
+            <option value="Kuda">Kuda Microfinance</option>
+            <option value="Access">Access Bank</option>
+            <option value="UBA">United Bank for Africa (UBA)</option>
+            <option value="FirstBank">First Bank of Nigeria</option>
+            <option value="Zenith">Zenith Bank</option>
+            <option value="Fidelity">Fidelity Bank</option>
+            <option value="FCMB">FCMB</option>
+            <option value="Keystone">Keystone Bank</option>
+            <option value="Tenn">Tenn Bank</option>
+        </select>
+    </div>
+
+    <div class="input-group">
+        <label>Account Number (10 Digits)</label>
+        <input type="number" id="acc-num" placeholder="e.g. 0123456789" oninput="if(this.value.length > 10) this.value = this.value.slice(0, 10);">
+    </div>
+
+    <div class="input-group">
+        <label>Withdrawal Amount (Min ₦2,000)</label>
+        <input type="number" id="amount" placeholder="Enter amount" oninput="updateFee(this.value)">
+        <div class="fee-label">
+            <span>Transaction Fee (10%)</span>
+            <span id="fee-display">₦0.00</span>
+        </div>
+    </div>
+
+    <button class="withdraw-btn" id="request-btn" onclick="validateAndOpenModal()">Request Withdrawal</button>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+        var userBalance = 0;
+        var savedPIN = null;
+
+        window.onload = function() {
+            _supa = getClient();
+            fetchUserData();
+        };
+
+        async function fetchUserData() {
+            var { data } = await _supa.from('profiles').select('balance, withdrawal_pin').eq('email', userEmail).single();
+            if (data) {
+                userBalance = parseFloat(data.balance);
+                savedPIN = data.withdrawal_pin;
+                document.getElementById('current-bal').innerText = userBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+            }
+        }
+
+        function updateFee(val) {
+            var amt = parseFloat(val) || 0;
+            var fee = amt * 0.10;
+            document.getElementById('fee-display').innerText = "₦" + fee.toLocaleString();
+        }
+
+        function showToast(msg, isSuccess) {
+            var t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isSuccess ? "linear-gradient(135deg, #059669, #10b981)" : "linear-gradient(135deg, #b91c1c, #ef4444)";
+            t.className = "animate-in";
+            setTimeout(function(){ t.className = ""; t.style.display="none"; }, 3500);
+        }
+
+        function validateAndOpenModal() {
+            var amt = parseFloat(document.getElementById('amount').value);
+            var bank = document.getElementById('bank-name').value;
+            var acc = document.getElementById('acc-num').value;
+
+            if(!bank) return showToast("Please select a bank", false);
+            if(acc.length !== 10) return showToast("Account number must be 10 digits", false);
+            if(!amt || amt < 2000) return showToast("Min withdrawal is ₦2,000", false);
+            if(amt > userBalance) return showToast("Insufficient wallet balance", false);
+
+            document.getElementById('pin-overlay').style.display = 'flex';
+            if(savedPIN) {
+                document.getElementById('pin-title').innerText = "Authorize";
+                document.getElementById('pin-desc').innerText = "Enter your secret withdrawal PIN";
+            } else {
+                document.getElementById('pin-title').innerText = "Create PIN";
+                document.getElementById('pin-desc').innerText = "Set a 4-digit code for all future payouts";
+            }
+        }
+
+        async function confirmPINAction() {
+            var pinVal = document.getElementById('pin-field').value;
+            if(pinVal.length !== 4) return showToast("PIN must be 4 digits", false);
+
+            document.getElementById('confirm-pin-btn').disabled = true;
+            document.getElementById('confirm-pin-btn').innerText = "Verifying...";
+
+            if(!savedPIN) {
+                var { error } = await _supa.from('profiles').update({ withdrawal_pin: pinVal }).eq('email', userEmail);
+                if(!error) {
+                    savedPIN = pinVal;
+                    submitWithdrawal();
+                } else {
+                    showToast("System busy. Try later", false);
+                    document.getElementById('confirm-pin-btn').disabled = false;
+                }
+            } else {
+                if(pinVal === savedPIN) {
+                    submitWithdrawal();
+                } else {
+                    showToast("Wrong PIN. Access Denied!", false);
+                    document.getElementById('confirm-pin-btn').disabled = false;
+                    document.getElementById('confirm-pin-btn').innerText = "Authorize Now";
+                    document.getElementById('pin-field').value = "";
+                }
+            }
+        }
+
+        async function submitWithdrawal() {
+            var bank = document.getElementById('bank-name').value;
+            var acc = document.getElementById('acc-num').value;
+            var rawAmt = parseFloat(document.getElementById('amount').value);
+
+            // Logic:
+            // 1. User pays 100% (rawAmt)
+            // 2. Withdrawal record shows 90% (netAmount) so user knows what is coming
+            // 3. System remembers 100% (rawAmt) in 'original_amount' for refund if rejected.
+            
+            var netAmount = rawAmt * 0.90;
+            var newBalance = userBalance - rawAmt;
+
+            var { error: balErr } = await _supa.from('profiles').update({ balance: newBalance }).eq('email', userEmail);
+
+            if(balErr) {
+                showToast("Transaction failed.", false);
+                document.getElementById('confirm-pin-btn').disabled = false;
+                return;
+            }
+
+            var { error: reqErr } = await _supa.from('withdrawals').insert([
+                { 
+                    email: userEmail, 
+                    amount: netAmount,         // What the user sees in history
+                    original_amount: rawAmt,   // What the admin uses to refund
+                    bank_name: bank, 
+                    acc_num: acc, 
+                    status: 'PENDING' 
+                }
+            ]);
+
+            if(!reqErr) {
+                showToast("Request Sent! ₦" + netAmount.toLocaleString() + " pending.", true);
+                setTimeout(function(){ location.href='home.html'; }, 2000);
+            } else {
+                // Refund if database insert fails
+                await _supa.from('profiles').update({ balance: userBalance }).eq('email', userEmail);
+                showToast("Error recording request!", false);
+                document.getElementById('confirm-pin-btn').disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
