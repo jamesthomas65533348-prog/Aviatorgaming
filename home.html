@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aviator Genius - Home</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --neon-blue: #00f2ff;
+            --bg-dark: #02050a; 
+            --bg-accent: #0a192f;
+            --card-bg: rgba(10, 20, 35, 0.9);
+            --success: #2ecc71; 
+            --error: #ff4d4d;
+            --gold: #fbbf24;
+            --info: #3498db;
+        }
+
+        body { 
+            background: radial-gradient(circle at center, var(--bg-accent) 0%, var(--bg-dark) 100%);
+            color: white; font-family: 'Segoe UI', sans-serif; 
+            margin: 0; padding: 0; overflow: hidden; height: 100vh;
+            perspective: 1200px;
+        }
+
+        /* --- 3D BACKGROUND GRID --- */
+        body::before {
+            content: ""; position: absolute; width: 200%; height: 200%; top: -50%; left: -50%;
+            background-image: linear-gradient(rgba(0, 123, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 123, 255, 0.05) 1px, transparent 1px);
+            background-size: 60px 60px; transform: rotateX(65deg); z-index: -1;
+            animation: gridMove 20s linear infinite;
+        }
+        @keyframes gridMove { 0% { transform: rotateX(65deg) translateY(0); } 100% { transform: rotateX(65deg) translateY(60px); } }
+
+        .watermark-container { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+        .flying-plane {
+            position: absolute; width: 120px; opacity: 0.1; filter: drop-shadow(0 0 10px var(--primary));
+            animation: flyPath 30s linear infinite;
+        }
+        @keyframes flyPath {
+            0% { transform: translate(-200px, 80vh) rotate(15deg); }
+            50% { transform: translate(50vw, 20vh) rotate(-10deg); }
+            100% { transform: translate(110vw, 50vh) rotate(5deg); }
+        }
+
+        .header {
+            padding: 25px; display: flex; justify-content: space-between; align-items: center;
+            position: relative; z-index: 10; gap: 10px;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .admin-badge {
+            position: absolute; left: 50%; transform: translateX(-50%);
+            background: rgba(251, 191, 36, 0.15); border: 1px solid var(--gold);
+            color: var(--gold); padding: 8px 16px; border-radius: 50px;
+            font-size: 0.7rem; font-weight: 900; letter-spacing: 1px;
+            cursor: pointer; display: none; transition: 0.3s;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
+            text-align: center;
+        }
+        .admin-badge:hover { background: var(--gold); color: black; transform: translateX(-50%) scale(1.05); }
+
+        .profile-trigger {
+            width: 50px; height: 50px; border-radius: 50%;
+            border: 2px solid var(--primary); padding: 2px; cursor: pointer;
+            transition: 0.3s; background: var(--bg-dark); overflow: hidden;
+        }
+        .profile-trigger img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        /* --- NOTIFICATIONS --- */
+        .notif-trigger {
+            position: relative; cursor: pointer; width: 45px; height: 45px;
+            display: flex; justify-content: center; align-items: center;
+            background: rgba(255,255,255,0.05); border-radius: 50%;
+        }
+        .notif-dot {
+            position: absolute; top: 10px; right: 10px; width: 10px; height: 10px;
+            background: var(--error); border-radius: 50%; border: 2px solid var(--bg-dark);
+            display: none; box-shadow: 0 0 10px var(--error);
+        }
+
+        #notif-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            display: none; justify-content: center; align-items: center; z-index: 2000;
+            padding: 20px;
+        }
+        .notif-card {
+            background: var(--card-bg); border: 1px solid #333; border-radius: 20px;
+            width: 100%; max-width: 450px; max-height: 80vh; overflow-y: auto;
+            position: relative; padding: 20px; box-sizing: border-box;
+        }
+        
+        .notif-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 0; transition: transform 0.2s ease-out, opacity 0.2s ease-out; touch-action: pan-y; will-change: transform; }
+        .notif-item img { width: 100%; border-radius: 12px; margin-top: 10px; }
+
+        /* --- BALANCE --- */
+        .balance-card { background: var(--card-bg); border: 1px solid var(--primary); padding: 10px 15px; border-radius: 15px; text-align: right; box-shadow: 0 0 20px rgba(0, 123, 255, 0.2); }
+        .bal-amount { font-size: 1.1rem; font-weight: 900; color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); display: block; }
+        .gain-trigger { animation: bal-gain 0.5s ease-in-out 4; }
+        .loss-trigger { animation: bal-loss 0.5s ease-in-out 4; }
+        @keyframes bal-gain { 0%, 100% { color: var(--neon-blue); } 50% { color: #2ecc71; transform: scale(1.1); } }
+        @keyframes bal-loss { 0%, 100% { color: var(--neon-blue); } 50% { color: #ff4d4d; transform: scale(0.9); } }
+
+        /* --- CORE GAME TRIGGER --- */
+        .aviator-core {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 180px; height: 180px; border-radius: 50%;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: 0.4s;
+        }
+        .core-plane { font-size: 4rem; animation: hoverPlane 3s ease-in-out infinite; }
+        @keyframes hoverPlane { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        /* --- WALLET MENU --- */
+        .wallet-menu-container { position: absolute; top: 85px; right: 25px; z-index: 20; }
+        .wallet-btn { background: var(--primary); width: 45px; height: 45px; border-radius: 12px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .dropdown-content {
+            position: absolute; top: 55px; right: 0; background: var(--card-bg);
+            border: 1px solid rgba(0, 123, 255, 0.3); border-radius: 20px;
+            width: 200px; display: none; flex-direction: column; overflow: hidden;
+            backdrop-filter: blur(20px);
+        }
+        .dropdown-content.show { display: flex; }
+        .menu-item { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; align-items: center; gap: 12px; font-weight: 500; font-size: 0.9rem; }
+        .menu-item i { width: 20px; text-align: center; font-size: 1.1rem; }
+
+        /* --- LOGOUT MODAL STYLES --- */
+        .logout-btn { position: fixed; bottom: 60px; right: 25px; width: 50px; height: 50px; background: rgba(255, 255, 255, 0.05); border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; color: var(--error); z-index: 100; border: 1px solid rgba(255,77,77,0.2); }
+        
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px); display: none; justify-content: center;
+            align-items: center; z-index: 3000;
+        }
+        .modal-card {
+            background: var(--card-bg); padding: 30px; border-radius: 25px;
+            border: 1px solid rgba(255,255,255,0.1); width: 85%; max-width: 320px;
+            text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .modal-card i { font-size: 3rem; color: var(--error); margin-bottom: 15px; }
+        .modal-btns { display: flex; gap: 10px; margin-top: 25px; }
+        .m-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .confirm-btn { background: var(--error); color: white; }
+        .cancel-btn { background: rgba(255,255,255,0.1); color: white; }
+        .m-btn:active { transform: scale(0.95); }
+
+        .live-ticker-container { background: rgba(0,0,0,0.8); height: 40px; position: fixed; bottom: 0; width: 100%; overflow: hidden; display: flex; align-items: center; }
+        .ticker-wrap { display: flex; white-space: nowrap; animation: ticker 40s linear infinite; }
+        .ticker-item { padding: 0 25px; font-size: 0.75rem; color: #94a3b8; }
+        @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+    </style>
+</head>
+<body>
+
+    <div class="watermark-container">
+        <svg class="flying-plane" viewBox="0 0 100 50" fill="var(--primary)">
+            <path d="M10,25 Q10,5 50,5 L90,20 Q105,25 90,30 L50,45 Q10,45 10,25" opacity="0.8"/>
+            <path d="M15,25 L5,5 L5,45 Z" />
+        </svg>
+    </div>
+
+    <div class="header">
+        <div class="header-left">
+            <div class="profile-trigger" onclick="location.href='profile.html'">
+                <img id="user-avatar" src="https://ui-avatars.com/api/?name=U&background=007bff&color=fff">
+            </div>
+            <div class="notif-trigger" onclick="openNotifModal()">
+                <i class="fa-solid fa-bell"></i>
+                <div id="notif-dot" class="notif-dot"></div>
+            </div>
+        </div>
+        
+        <div id="admin-gate" class="admin-badge" onclick="location.href='admin-shield.html'">
+            <i class="fa-solid fa-shield-halved"></i> ADMIN CONTROL
+        </div>
+
+        <div class="balance-card">
+            <span style="font-size: 0.5rem; color: var(--primary); font-weight: 900;">LIVE BALANCE</span>
+            <span id="bal-text" class="bal-amount">₦<span id="balance">0.00</span></span>
+        </div>
+    </div>
+
+    <div class="wallet-menu-container">
+        <div class="wallet-btn" onclick="toggleWallet()"><i class="fa-solid fa-wallet"></i></div>
+        <div class="dropdown-content" id="walletMenu">
+            <div class="menu-item" onclick="location.href='deposit.html'"><i class="fa-solid fa-circle-plus" style="color:var(--success)"></i> Deposit</div>
+            <div class="menu-item" onclick="location.href='withdraw.html'"><i class="fa-solid fa-circle-minus" style="color:var(--error)"></i> Withdraw</div>
+            <div class="menu-item" onclick="location.href='history.html'"><i class="fa-solid fa-clock-rotate-left" style="color:var(--info)"></i> History</div>
+            <div class="menu-item" onclick="location.href='support.html'"><i class="fa-solid fa-headset" style="color:var(--gold)"></i> Support</div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="logoutModal">
+        <div class="modal-card">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <h3>End Session?</h3>
+            <p style="opacity: 0.7; font-size: 0.9rem;">Are you sure you want to log out of Aviator Genius?</p>
+            <div class="modal-btns">
+                <button class="m-btn cancel-btn" onclick="closeLogoutModal()">Cancel</button>
+                <button class="m-btn confirm-btn" onclick="confirmLogout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="notif-modal">
+        <div class="notif-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0;"><i class="fa-solid fa-bullhorn" style="color:var(--primary)"></i> Alerts</h3>
+                <i class="fa-solid fa-times" onclick="closeNotifModal()" style="cursor:pointer; font-size:1.2rem; opacity:0.5;"></i>
+            </div>
+            <div id="notif-content"></div>
+            <button onclick="markAllAsRead()" id="mark-read-btn" style="width:100%; padding:15px; margin-top:20px; border-radius:12px; border:none; background:var(--primary); color:white; font-weight:bold; cursor:pointer;">DISMISS ALL</button>
+        </div>
+    </div>
+
+    <div class="aviator-core" onclick="location.href='game.html'"><i class="fa-solid fa-plane core-plane"></i></div>
+    
+    <div class="logout-btn" onclick="openLogoutModal()">
+        <i class="fa-solid fa-power-off"></i>
+    </div>
+
+    <div class="live-ticker-container"><div class="ticker-wrap" id="ticker-content"></div></div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+        var lastBalance = null;
+        var activeNotifIds = []; 
+        let startX = 0;
+        let currentX = 0;
+
+        window.onload = async function() {
+            if(!userEmail) { location.href='login.html'; return; }
+            _supa = getClient();
+            await loadData();
+            checkNotifications(); 
+            setInterval(loadData, 3000); 
+            setInterval(checkNotifications, 10000); 
+            generateLiveWins();
+        };
+
+        async function loadData() {
+            try {
+                var { data, error } = await _supa.from('profiles').select('*').eq('email', userEmail).single();
+                if(data) {
+                    const newBalance = parseFloat(data.balance || 0);
+                    const balElement = document.getElementById('balance');
+                    const balContainer = document.getElementById('bal-text');
+
+                    if (lastBalance !== null && newBalance !== lastBalance) {
+                        balContainer.classList.remove('gain-trigger', 'loss-trigger');
+                        void balContainer.offsetWidth;
+                        if (newBalance > lastBalance) balContainer.classList.add('gain-trigger');
+                        else if (newBalance < lastBalance) balContainer.classList.add('loss-trigger');
+                    }
+
+                    balElement.innerText = newBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+                    lastBalance = newBalance;
+
+                    if(data.avatar_url) document.getElementById('user-avatar').src = data.avatar_url;
+                    
+                    localStorage.setItem('user_id', data.id);
+                    localStorage.setItem('user_role', data.role);
+                    document.getElementById('admin-gate').style.display = (data.role === 'ADMIN') ? 'block' : 'none';
+                }
+            } catch (e) { console.error("Sync error"); }
+        }
+
+        // --- WALLET & LOGOUT LOGIC ---
+        function toggleWallet() { document.getElementById('walletMenu').classList.toggle('show'); }
+        function openLogoutModal() { document.getElementById('logoutModal').style.display = 'flex'; }
+        function closeLogoutModal() { document.getElementById('logoutModal').style.display = 'none'; }
+        function confirmLogout() { localStorage.clear(); location.href = 'login.html'; }
+
+        // --- NOTIFICATIONS & SWIPE ---
+        async function checkNotifications() {
+            const userId = localStorage.getItem('user_id');
+            if(!userId) return;
+            const { data: readData } = await _supa.from('notification_reads').select('notification_id').eq('user_id', userId);
+            const readIds = readData ? readData.map(r => r.notification_id) : [];
+            const { data: allNotifs } = await _supa.from('notifications').select('id');
+            const unread = (allNotifs || []).filter(n => !readIds.includes(n.id));
+            document.getElementById('notif-dot').style.display = (unread.length > 0) ? 'block' : 'none';
+        }
+
+        async function openNotifModal() {
+            const userId = localStorage.getItem('user_id');
+            document.getElementById('notif-modal').style.display = 'flex';
+            const { data: readData } = await _supa.from('notification_reads').select('notification_id').eq('user_id', userId);
+            const readIds = readData ? readData.map(r => r.notification_id) : [];
+            const { data: messages } = await _supa.from('notifications').select('*').order('created_at', { ascending: false });
+            const unread = (messages || []).filter(m => !readIds.includes(m.id));
+            activeNotifIds = unread.map(m => m.id);
+            let html = unread.length === 0 ? '<div style="text-align:center; padding:40px 0; opacity:0.4;">No new alerts</div>' : '';
+            if(unread.length > 0) {
+                unread.forEach(m => {
+                    html += `<div class="notif-item" data-id="${m.id}" ontouchstart="handleTouchStart(event)" ontouchmove="handleTouchMove(event, this)" ontouchend="handleTouchEnd(event, this)">
+                    <p style="margin:0; font-size:0.95rem; color:#fff;">${m.message}</p>
+                    ${m.image_url ? `<img src="${m.image_url}">` : ''}</div>`;
+                });
+            }
+            document.getElementById('notif-content').innerHTML = html;
+            document.getElementById('mark-read-btn').style.display = unread.length > 0 ? 'block' : 'none';
+        }
+
+        function handleTouchStart(e) { startX = e.touches[0].clientX; currentX = startX; }
+        function handleTouchMove(e, el) { currentX = e.touches[0].clientX; let diff = currentX - startX; if (diff < 0) { el.style.transform = `translateX(${diff}px)`; el.style.opacity = 1 - (Math.abs(diff) / 300); } }
+        async function handleTouchEnd(e, el) {
+            let diff = currentX - startX;
+            if (diff < -80) {
+                el.style.transform = 'translateX(-120%)';
+                setTimeout(() => { el.remove(); }, 200);
+                await _supa.from('notification_reads').insert([{ user_id: localStorage.getItem('user_id'), notification_id: el.getAttribute('data-id') }]);
+                checkNotifications();
+            } else { el.style.transform = 'translateX(0)'; el.style.opacity = '1'; }
+        }
+
+        async function markAllAsRead() {
+            const userId = localStorage.getItem('user_id');
+            const inserts = activeNotifIds.map(id => ({ user_id: userId, notification_id: id }));
+            await _supa.from('notification_reads').insert(inserts);
+            closeNotifModal();
+            checkNotifications();
+        }
+
+        function closeNotifModal() { document.getElementById('notif-modal').style.display = 'none'; }
+
+        function generateLiveWins() {
+            const ticker = document.getElementById('ticker-content');
+            let content = '';
+            for(let i=0; i<20; i++) {
+                const botId = String.fromCharCode(65 + Math.floor(Math.random() * 26)) + "***" + Math.floor(Math.random() * 9);
+                const winAmt = (Math.random() * 50000 + 500).toLocaleString('en-US', {maximumFractionDigits: 0});
+                content += `<div class="ticker-item">User ${botId} won <span style="color:var(--success); font-weight:bold;">₦${winAmt}</span></div> • `;
+            }
+            ticker.innerHTML = content + content;
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.closest('.wallet-menu-container')) document.getElementById('walletMenu').classList.remove('show');
+            if (event.target.id === 'logoutModal') closeLogoutModal();
+        }
+    </script>
+</body>
+</html>

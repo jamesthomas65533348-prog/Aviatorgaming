@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Transaction Ledger - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --bg: #02050a; 
+            --accent: #0a192f;
+            --card: rgba(15, 23, 42, 0.6);
+            --success: #2ecc71; 
+            --warning: #fbbf24; 
+            --error: #f43f5e; 
+            --text-muted: #94a3b8;
+        }
+
+        body { 
+            background: radial-gradient(circle at top, var(--accent) 0%, var(--bg) 100%);
+            color: white; font-family: 'Segoe UI', system-ui, sans-serif; 
+            margin: 0; padding: 0; min-height: 100vh;
+        }
+
+        /* --- HEADER --- */
+        .history-header {
+            padding: 20px; display: flex; align-items: center;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .back-btn {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: rgba(255,255,255,0.05); display: flex;
+            align-items: center; justify-content: center; cursor: pointer;
+        }
+
+        /* --- STYLISH TABS --- */
+        .tab-container {
+            padding: 20px;
+        }
+        .tabs { 
+            display: flex; background: rgba(0,0,0,0.3); border-radius: 16px; 
+            padding: 6px; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .tab { 
+            flex: 1; padding: 12px; text-align: center; border-radius: 12px; 
+            cursor: pointer; font-size: 0.8rem; font-weight: 800; 
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); color: var(--text-muted); 
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .tab.active { 
+            background: var(--primary); color: white; 
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        /* --- HISTORY ITEMS --- */
+        .history-list { display: flex; flex-direction: column; gap: 15px; padding: 0 20px 40px; }
+        
+        .item { 
+            background: var(--card); padding: 20px; border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.05); display: flex; 
+            justify-content: space-between; align-items: center; 
+            backdrop-filter: blur(10px); transition: 0.3s;
+        }
+        .item:active { transform: scale(0.98); background: rgba(255,255,255,0.03); }
+        
+        .item-left { display: flex; flex-direction: column; gap: 4px; }
+        .type-tag { font-size: 0.6rem; color: var(--primary); font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+        .amount { font-weight: 900; font-size: 1.3rem; font-family: 'Monaco', monospace; }
+        .date { font-size: 0.7rem; color: var(--text-muted); }
+        
+        .bank-info {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 0.65rem; color: #64748b; margin-top: 5px;
+            background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px;
+        }
+
+        /* --- STATUS BADGES --- */
+        .status-box { text-align: right; }
+        .status-badge { 
+            font-size: 0.65rem; font-weight: 900; padding: 4px 10px;
+            border-radius: 8px; text-transform: uppercase; letter-spacing: 1px;
+            display: inline-block; margin-bottom: 5px;
+        }
+        
+        .bg-PENDING { background: rgba(251, 191, 36, 0.15); color: var(--warning); border: 1px solid rgba(251, 191, 36, 0.3); }
+        .bg-APPROVED { background: rgba(46, 204, 113, 0.15); color: var(--success); border: 1px solid rgba(46, 204, 113, 0.3); }
+        .bg-REJECTED { background: rgba(244, 63, 94, 0.15); color: var(--error); border: 1px solid rgba(244, 63, 94, 0.3); }
+
+        .bonus-label { 
+            font-size: 0.55rem; color: var(--success); font-weight: bold; 
+            background: rgba(46, 204, 113, 0.1); padding: 2px 6px; border-radius: 4px;
+        }
+        .refund-label { 
+            font-size: 0.55rem; color: var(--error); font-weight: bold; 
+            background: rgba(244, 63, 94, 0.1); padding: 2px 6px; border-radius: 4px;
+        }
+
+        .empty-state { text-align: center; margin-top: 100px; }
+        .empty-state i { font-size: 3rem; color: var(--text-muted); opacity: 0.2; margin-bottom: 15px; }
+        .empty-text { color: var(--text-muted); font-size: 0.8rem; letter-spacing: 1px; }
+
+        /* Syncing Animation */
+        .loader {
+            width: 20px; height: 20px; border: 2px solid var(--primary);
+            border-bottom-color: transparent; border-radius: 50%;
+            display: inline-block; animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="history-header">
+        <div class="back-btn" onclick="location.href='home.html'"><i class="fa-solid fa-chevron-left"></i></div>
+        <div style="font-weight: 900; letter-spacing: 2px; font-size: 0.9rem; margin-left: 15px;">FLIGHT LOGS</div>
+    </div>
+
+    <div class="tab-container">
+        <div class="tabs">
+            <div class="tab active" id="tab-dep" onclick="switchTab('deposits')">Refuels</div>
+            <div class="tab" id="tab-wit" onclick="switchTab('withdrawals')">Payouts</div>
+        </div>
+    </div>
+
+    <div class="history-list" id="history-container"></div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+        var currentTab = 'deposits';
+
+        window.onload = function() {
+            _supa = getClient();
+            if(!userEmail) { location.href='login.html'; return; }
+            loadHistory('deposits');
+        };
+
+        function switchTab(type) {
+            currentTab = type;
+            document.getElementById('tab-dep').classList.toggle('active', type === 'deposits');
+            document.getElementById('tab-wit').classList.toggle('active', type === 'withdrawals');
+            
+            // Adjust primary color for withdrawals (Red/Rose) vs Deposits (Blue)
+            document.documentElement.style.setProperty('--primary', type === 'deposits' ? '#007bff' : '#f43f5e');
+            
+            loadHistory(type);
+        }
+
+        async function loadHistory(table) {
+            var container = document.getElementById('history-container');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="loader"></span>
+                    <p class="empty-text">SYNCING WITH SERVER...</p>
+                </div>`;
+
+            const { data: profile } = await _supa
+                .from('profiles')
+                .select('first_deposit_done')
+                .eq('email', userEmail)
+                .maybeSingle();
+
+            var { data, error } = await _supa.from(table)
+                .select('*')
+                .eq('email', userEmail)
+                .order('created_at', { ascending: false });
+
+            if (error || !data || data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-folder-open"></i>
+                        <p class="empty-text">NO ENTRIES FOUND</p>
+                    </div>`;
+                return;
+            }
+
+            let firstApprovedId = null;
+            if (table === 'deposits') {
+                const approvedOnly = data.filter(d => d.status.toUpperCase() === 'APPROVED');
+                if (approvedOnly.length > 0) {
+                    firstApprovedId = approvedOnly[approvedOnly.length - 1].id;
+                }
+            }
+
+            container.innerHTML = data.map(item => {
+                const status = item.status.toUpperCase();
+                
+                let displayAmount = item.amount;
+                if (table === 'withdrawals' && status === 'REJECTED' && item.original_amount) {
+                    displayAmount = item.original_amount;
+                }
+
+                const showBonus = (
+                    table === 'deposits' && 
+                    status === 'APPROVED' && 
+                    profile?.first_deposit_done === true && 
+                    item.id === firstApprovedId
+                );
+
+                const dateObj = new Date(item.created_at);
+                const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                return `
+                <div class="item">
+                    <div class="item-left">
+                        <span class="type-tag">${table === 'deposits' ? 'Fuel Injection' : 'Mission Payout'}</span>
+                        <span class="amount">₦${parseFloat(displayAmount).toLocaleString()}</span>
+                        <span class="date">${formattedDate} • ${formattedTime}</span>
+                        ${table === 'withdrawals' ? `
+                            <div class="bank-info">
+                                <i class="fa-solid fa-building-columns"></i> ${item.bank_name}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="status-box">
+                        <div class="status-badge bg-${status}">${status}</div>
+                        <br>
+                        ${showBonus ? '<span class="bonus-label">6X BONUS</span>' : ''}
+                        ${status === 'REJECTED' && table === 'withdrawals' ? '<span class="refund-label">100% REFUNDED</span>' : ''}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>

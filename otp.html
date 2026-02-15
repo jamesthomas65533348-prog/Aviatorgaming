@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Verify - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --primary-glow: rgba(0, 123, 255, 0.4);
+            --bg-dark: #02050a; 
+            --bg-accent: #0a192f;
+            --card-bg: rgba(10, 20, 35, 0.9);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --success: #2ecc71;
+            --warning: #ffcc00;
+        }
+
+        body { 
+            background: radial-gradient(circle at center, var(--bg-accent) 0%, var(--bg-dark) 100%);
+            color: white; 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            overflow: hidden; 
+            perspective: 1200px;
+        }
+
+        /* --- 3D PERSPECTIVE GRID --- */
+        body::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background-image: 
+                linear-gradient(rgba(0, 123, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 123, 255, 0.05) 1px, transparent 1px);
+            background-size: 60px 60px;
+            transform: rotateX(65deg);
+            z-index: -1;
+            animation: gridMove 15s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: rotateX(65deg) translateY(0); }
+            100% { transform: rotateX(65deg) translateY(60px); }
+        }
+
+        /* --- 3D CARD --- */
+        .card { 
+            background: var(--card-bg); 
+            padding: 40px 30px; 
+            border-radius: 30px; 
+            width: 90%; 
+            max-width: 380px; 
+            border: 1px solid rgba(0, 123, 255, 0.25); 
+            text-align: center; 
+            backdrop-filter: blur(25px);
+            box-shadow: 0 30px 70px rgba(0,0,0,0.8), inset 0 0 30px rgba(0, 123, 255, 0.05);
+            animation: cardSlideIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes cardSlideIn {
+            0% { opacity: 0; transform: translateZ(-200px) scale(0.8); }
+            100% { opacity: 1; transform: translateZ(0) scale(1); }
+        }
+
+        h3 { font-size: 1.6rem; font-weight: 900; margin: 0 0 10px; letter-spacing: 1px; }
+        p { font-size: 0.9rem; opacity: 0.6; line-height: 1.5; margin-bottom: 25px; }
+
+        /* --- BOUNCY OTP INPUT --- */
+        #otp-input { 
+            width: 100%; 
+            padding: 20px; 
+            margin-bottom: 25px; 
+            border-radius: 18px; 
+            border: 2px solid rgba(255, 255, 255, 0.1); 
+            text-align: center; 
+            font-size: 2.2rem; 
+            letter-spacing: 12px; 
+            font-weight: 900; 
+            background: #fff; 
+            color: #000; 
+            box-sizing: border-box;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            outline: none;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        #otp-input:focus {
+            transform: scale(1.05);
+            border-color: var(--primary);
+            box-shadow: 0 0 25px var(--primary-glow);
+        }
+
+        /* --- VERIFY BUTTON --- */
+        button { 
+            width: 100%; 
+            padding: 16px; 
+            background: linear-gradient(135deg, var(--primary), #0056b3); 
+            color: white; 
+            border: none; 
+            border-radius: 15px; 
+            font-weight: 900; 
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 25px var(--primary-glow);
+        }
+
+        button:active { transform: scale(0.94); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* --- STATUS & TIMER --- */
+        .status-msg { 
+            margin-top: 20px; 
+            font-size: 0.85rem; 
+            padding: 12px; 
+            border-radius: 12px; 
+            background: rgba(0, 123, 255, 0.1); 
+            border: 1px solid rgba(0, 123, 255, 0.2);
+            color: var(--warning); 
+            font-weight: bold; 
+            transition: 0.5s;
+        }
+
+        .resend-container { margin-top: 25px; font-size: 0.85rem; }
+        .resend-link { color: var(--primary); cursor: pointer; text-decoration: none; font-weight: bold; display: none; transition: 0.3s; }
+        .resend-link:hover { text-shadow: 0 0 10px var(--primary-glow); color: #fff; }
+        .timer-display { color: #556677; }
+
+        /* --- TOAST --- */
+        #toast { 
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+            padding: 15px 35px; border-radius: 50px; display: none; z-index: 10000; 
+            color: white; font-weight: bold; box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+        }
+        .animate-toast { display: block !important; animation: toastPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards; }
+        @keyframes toastPop { 0% { transform: translateX(-50%) translateY(-100px) scale(0.5); opacity: 0; } 100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+
+    <div class="card">
+        <h3>Verify Identity</h3>
+        <p>Enter the 5-digit verification code <br> provided to your mail.</p>
+        
+        <input type="number" id="otp-input" placeholder="00000" oninput="if(this.value.length > 5) this.value = this.value.slice(0, 5)">
+        
+        <button id="verify-btn" onclick="handleVerify()">Verify & Join</button>
+        
+        <div id="status-indicator" class="status-msg">Initiating...</div>
+
+        <div class="resend-container">
+            <span id="resend-timer-text" class="timer-display">Resend code in <b id="timer" style="color:#fff">03:00</b></span>
+            <span id="resend-link" class="resend-link" onclick="requestNewCode()">Request New Code</span>
+        </div>
+    </div>
+
+    <script>
+        var _supa;
+        var myEmail = localStorage.getItem('my_email');
+        var countdown;
+
+        window.onload = function() {
+            _supa = getClient();
+            if (!myEmail) {
+                location.href='signup.html';
+                return;
+            }
+            startTimer(180);
+            checkLiveStatus();
+            setInterval(checkLiveStatus, 5000); 
+        };
+
+        function startTimer(seconds) {
+            clearInterval(countdown);
+            const display = document.querySelector('#timer');
+            const timerText = document.querySelector('#resend-timer-text');
+            const resendLink = document.querySelector('#resend-link');
+            
+            resendLink.style.display = "none";
+            timerText.style.display = "inline";
+
+            let timer = seconds;
+            countdown = setInterval(function () {
+                let minutes = parseInt(timer / 60, 10);
+                let secs = parseInt(timer % 60, 10);
+
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                secs = secs < 10 ? "0" + secs : secs;
+
+                display.textContent = minutes + ":" + secs;
+
+                if (--timer < 0) {
+                    clearInterval(countdown);
+                    timerText.style.display = "none";
+                    resendLink.style.display = "inline";
+                }
+            }, 1000);
+        }
+
+        async function checkLiveStatus() {
+            const { data } = await _supa.from('profiles').select('otp_status').eq('email', myEmail).single();
+            const indicator = document.getElementById('status-indicator');
+            
+            if (data.otp_status === 'PENDING') {
+                indicator.innerHTML = "<i class='fa-solid fa-paper-plane'></i> Status: Code Sent!";
+                indicator.style.color = "#2ecc71";
+            } else if (data.otp_status === 'RESEND_REQUESTED') {
+                indicator.innerHTML = "<i class='fa-solid fa-hourglass-half'></i> Admin is generating code...";
+                indicator.style.color = "#ffcc00";
+            } else if (data.otp_status === 'VERIFIED') {
+                indicator.innerHTML = "<i class='fa-solid fa-circle-check'></i> Verified! Redirecting...";
+                indicator.style.color = "#2ecc71";
+            } else {
+                indicator.innerHTML = "Status: Waiting for update...";
+            }
+        }
+
+        async function requestNewCode() {
+            const { error } = await _supa.from('profiles').update({ 
+                otp_code: null, 
+                otp_status: 'RESEND_REQUESTED' 
+            }).eq('email', myEmail);
+
+            if (!error) {
+                showToast("Request Sent Successfully", true);
+                document.getElementById('otp-input').value = "";
+                startTimer(180);
+            }
+        }
+
+        function showToast(msg, isSuccess) {
+            var t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isSuccess ? "#2ecc71" : "#007bff";
+            t.classList.add("animate-toast");
+            setTimeout(function(){ t.classList.remove("animate-toast"); t.style.display="none"; }, 3000);
+        }
+
+        async function handleVerify() {
+            var inputVal = document.getElementById('otp-input').value;
+            var btn = document.getElementById('verify-btn');
+
+            if (inputVal.length < 5) {
+                showToast("Enter 5-digit code", false);
+                return;
+            }
+
+            btn.innerText = "VERIFYING...";
+            btn.disabled = true;
+
+            const { data } = await _supa.from('profiles').select('otp_code').eq('email', myEmail).single();
+
+            if (data && data.otp_code === inputVal) {
+                await _supa.from('profiles').update({ otp_status: 'VERIFIED' }).eq('email', myEmail);
+                showToast("Verification Successful!", true);
+                localStorage.setItem('is_verified', 'true');
+                setTimeout(function(){ location.href='login.html'; }, 2000);
+            } else {
+                showToast("Incorrect Code.", false);
+                btn.innerText = "Verify & Join";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

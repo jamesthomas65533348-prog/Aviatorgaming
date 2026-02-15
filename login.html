@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Login - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --primary-glow: rgba(0, 123, 255, 0.4);
+            --bg-dark: #02050a; 
+            --bg-accent: #0a192f;
+            --card-bg: rgba(10, 20, 35, 0.9);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --error: #ff4d4d; 
+            --success: #2ecc71; 
+        }
+
+        body { 
+            background: radial-gradient(circle at center, var(--bg-accent) 0%, var(--bg-dark) 100%);
+            color: white; 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            overflow: hidden; 
+            perspective: 1200px;
+        }
+
+        /* --- 3D PERSPECTIVE GRID --- */
+        body::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background-image: 
+                linear-gradient(rgba(0, 123, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 123, 255, 0.05) 1px, transparent 1px);
+            background-size: 60px 60px;
+            transform: rotateX(65deg);
+            z-index: -1;
+            animation: gridMove 15s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: rotateX(65deg) translateY(0); }
+            100% { transform: rotateX(65deg) translateY(60px); }
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            padding: 40px 30px; 
+            border-radius: 30px; 
+            width: 90%; 
+            max-width: 380px; 
+            border: 1px solid rgba(0, 123, 255, 0.25); 
+            text-align: center; 
+            backdrop-filter: blur(25px);
+            box-shadow: 0 30px 70px rgba(0,0,0,0.8), inset 0 0 30px rgba(0, 123, 255, 0.05);
+            animation: cardEntry 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes cardEntry {
+            0% { opacity: 0; transform: translateZ(-150px) translateY(30px); }
+            100% { opacity: 1; transform: translateZ(0) translateY(0); }
+        }
+
+        h2 { 
+            font-size: 2rem; 
+            font-weight: 900; 
+            margin: 0 0 5px; 
+            background: linear-gradient(to bottom, #fff, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle { font-size: 0.9rem; opacity: 0.5; margin-bottom: 30px; }
+
+        .input-group { position: relative; margin-bottom: 18px; }
+        
+        input { 
+            width: 100%; 
+            padding: 16px; 
+            border-radius: 14px; 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            background: var(--input-bg); 
+            color: white; 
+            box-sizing: border-box; 
+            font-size: 1rem;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            outline: none;
+        }
+
+        input:focus { 
+            background: rgba(0, 123, 255, 0.08);
+            border-color: var(--primary);
+            transform: scale(1.04) translateY(-2px);
+            box-shadow: 0 15px 25px rgba(0,0,0,0.3), 0 0 15px var(--primary-glow);
+        }
+
+        .eye-icon {
+            position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+            color: rgba(255,255,255,0.4); cursor: pointer; font-size: 1.2rem; 
+            user-select: none; transition: 0.3s;
+        }
+
+        button { 
+            width: 100%; 
+            padding: 16px; 
+            background: linear-gradient(135deg, var(--primary), #0056b3); 
+            color: white; 
+            border: none; 
+            border-radius: 14px; 
+            font-weight: 900; 
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            cursor: pointer; 
+            margin-top: 10px;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 8px 20px var(--primary-glow);
+        }
+
+        #toast { 
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%); 
+            padding: 15px 30px; border-radius: 50px; display: none; z-index: 9999; 
+            color: white; font-weight: bold; backdrop-filter: blur(10px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6); text-align: center; min-width: 250px;
+        }
+        .animate-toast { display: block !important; animation: toastPop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards; }
+        @keyframes toastPop { 0% { transform: translateX(-50%) translateY(-100px) scale(0.5); opacity: 0; } 100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; } }
+
+        .footer-link { margin-top: 25px; font-size: 0.9rem; opacity: 0.6; cursor: pointer; transition: 0.3s; }
+        .footer-link:hover { opacity: 1; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+
+    <div class="card">
+        <h2>Welcome Back</h2>
+        <p class="subtitle">Login to start flying</p>
+
+        <div class="input-group">
+            <input type="email" id="login-email" placeholder="Email Address">
+        </div>
+
+        <div class="input-group">
+            <input type="password" id="login-pass" placeholder="Password">
+            <span class="eye-icon" id="togglePass" onclick="togglePassword()">👁️</span>
+        </div>
+
+        <button id="btn" onclick="handleLogin()">Login</button>
+        
+        <p class="footer-link" onclick="location.href='index.html'">
+            Don't have an account? <span style="color: var(--primary); font-weight: bold;">Sign Up</span>
+        </p>
+    </div>
+
+    <script>
+        var _supa;
+        window.onload = function() { _supa = getClient(); };
+
+        function togglePassword() {
+            var passInput = document.getElementById('login-pass');
+            var eye = document.getElementById('togglePass');
+            if (passInput.type === "password") {
+                passInput.type = "text";
+                eye.innerText = "🙈";
+            } else {
+                passInput.type = "password";
+                eye.innerText = "👁️";
+            }
+        }
+
+        function showToast(msg, isSuccess) {
+            var t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isSuccess ? "var(--success)" : "var(--error)";
+            t.classList.add("animate-toast");
+            setTimeout(function(){ 
+                t.classList.remove("animate-toast");
+                setTimeout(() => t.style.display="none", 500);
+            }, 3000);
+        }
+
+        async function handleLogin() {
+            var email = document.getElementById('login-email').value.trim();
+            var pass = document.getElementById('login-pass').value;
+            var btn = document.getElementById('btn');
+
+            if (!email || !pass) {
+                showToast("Please fill all fields", false);
+                return;
+            }
+
+            btn.innerText = "VERIFYING...";
+            btn.disabled = true;
+
+            try {
+                const { data, error } = await _supa
+                    .from('profiles')
+                    .select('*')
+                    .eq('email', email)
+                    .eq('password', pass)
+                    .single();
+
+                if (error || !data) {
+                    showToast("Invalid Email or Password", false);
+                    btn.innerText = "Login";
+                    btn.disabled = false;
+                    return;
+                }
+
+                // CHECK VERIFICATION STATUS
+                // If the user's otp_status is PENDING or RESEND_REQUESTED, they shouldn't enter.
+                if (data.otp_status === 'PENDING' || data.otp_status === 'RESEND_REQUESTED') {
+                    showToast("Access Denied: Account Verification Pending", false);
+                    btn.innerText = "Login";
+                    btn.disabled = false;
+                    return;
+                }
+
+                // If status is APPROVED or anything else, log them in
+                showToast("Login Successful!", true);
+                localStorage.setItem('user_email', data.email);
+                localStorage.setItem('user_id', data.id);
+                
+                setTimeout(function(){ location.href='home.html'; }, 1500);
+
+            } catch (err) {
+                console.error(err);
+                showToast("Connection Error. Try again.", false);
+                btn.innerText = "Login";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

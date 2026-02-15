@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pilot Profile - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --neon-blue: #00f2ff;
+            --bg-dark: #02050a; 
+            --bg-accent: #0a192f;
+            --card-bg: rgba(10, 20, 35, 0.8);
+            --success: #2ecc71; 
+            --gold: #fbbf24;
+        }
+
+        body { 
+            background: radial-gradient(circle at top, var(--bg-accent) 0%, var(--bg-dark) 100%);
+            color: white; font-family: 'Segoe UI', sans-serif; 
+            margin: 0; padding: 0; min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- BACKGROUND DECOR --- */
+        body::before {
+            content: ""; position: fixed; inset: 0;
+            background-image: radial-gradient(var(--primary) 1px, transparent 1px);
+            background-size: 40px 40px; opacity: 0.1; z-index: -1;
+        }
+
+        /* --- HEADER & NAVIGATION --- */
+        .profile-header {
+            padding: 20px; display: flex; align-items: center;
+            background: rgba(0,0,0,0.3); backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 123, 255, 0.2);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .back-btn {
+            width: 40px; height: 40px; display: flex; justify-content: center;
+            align-items: center; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05); cursor: pointer; transition: 0.3s;
+        }
+        .back-btn:active { transform: scale(0.9); background: var(--primary); }
+
+        /* --- AVATAR GLOW SECTION --- */
+        .pilot-identity {
+            text-align: center; padding: 40px 20px 20px;
+            position: relative;
+        }
+
+        .avatar-glow-wrap {
+            position: relative; width: 140px; height: 140px; margin: 0 auto 20px;
+        }
+        .avatar-glow-wrap::before {
+            content: ""; position: absolute; inset: -5px;
+            background: conic-gradient(from 0deg, var(--primary), var(--neon-blue), var(--primary));
+            border-radius: 50%; animation: spin 4s linear infinite; opacity: 0.6;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .avatar-img {
+            position: relative; width: 100%; height: 100%; border-radius: 50%;
+            object-fit: cover; border: 4px solid var(--bg-dark);
+            background: var(--bg-accent);
+        }
+
+        .cam-overlay {
+            position: absolute; bottom: 5px; right: 5px;
+            background: var(--primary); color: white; width: 38px; height: 38px;
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            border: 3px solid var(--bg-dark); cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .rank-badge {
+            background: linear-gradient(90deg, var(--gold), #d97706);
+            color: black; padding: 4px 12px; border-radius: 50px;
+            font-size: 0.7rem; font-weight: 900; letter-spacing: 1px;
+            display: inline-block; margin-top: 10px; box-shadow: 0 0 15px rgba(251, 191, 36, 0.3);
+        }
+
+        /* --- INFO CARDS --- */
+        .stats-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 0 20px; margin-bottom: 20px;
+        }
+        .stat-box {
+            background: var(--card-bg); padding: 15px; border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.05); text-align: center;
+        }
+        .stat-label { font-size: 0.6rem; color: var(--primary); font-weight: 800; letter-spacing: 1px; }
+        .stat-value { font-size: 1rem; font-weight: bold; margin-top: 5px; }
+
+        .settings-container { padding: 0 20px 40px; }
+        .setting-card {
+            background: var(--card-bg); border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.05); overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .setting-item {
+            padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.03);
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .item-header { display: flex; justify-content: space-between; align-items: center; }
+        .item-label { font-size: 0.7rem; color: #94a3b8; font-weight: bold; text-transform: uppercase; }
+        
+        .code-display {
+            background: rgba(0,0,0,0.4); padding: 12px 15px; border-radius: 12px;
+            border: 1px dashed var(--primary); display: flex; justify-content: space-between;
+            align-items: center; font-family: monospace; color: var(--neon-blue);
+        }
+
+        /* --- TOAST NOTIFICATION --- */
+        #toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            padding: 12px 24px; border-radius: 15px; font-weight: bold;
+            z-index: 1000; display: none; animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        @keyframes slideUp { from { bottom: -50px; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+
+    </style>
+</head>
+<body>
+    <div id="toast"></div>
+
+    <div class="profile-header">
+        <div class="back-btn" onclick="location.href='home.html'">
+            <i class="fa-solid fa-chevron-left"></i>
+        </div>
+        <h4 style="margin: 0 0 0 15px; letter-spacing: 1px;">PILOT DASHBOARD</h4>
+    </div>
+
+    <div class="pilot-identity">
+        <div class="avatar-glow-wrap">
+            <img id="pfp" src="https://ui-avatars.com/api/?name=User&background=007bff&color=fff" class="avatar-img">
+            <label for="file-input" class="cam-overlay">
+                <i class="fa-solid fa-camera"></i>
+            </label>
+            <input type="file" id="file-input" style="display:none" accept="image/*" onchange="uploadPfp()">
+        </div>
+        <h2 id="display-email" style="margin: 0; font-size: 1.4rem; text-shadow: 0 0 15px var(--primary);">---</h2>
+        <div class="rank-badge" id="rank-name">AVIATOR ROOKIE</div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div class="stat-label">STATUS</div>
+            <div class="stat-value" style="color:var(--success)"><i class="fa-solid fa-circle-check"></i> ACTIVE</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">ACCOUNT TYPE</div>
+            <div class="stat-value" id="acc-type">Standard</div>
+        </div>
+    </div>
+
+    <div class="settings-container">
+        <div class="setting-card">
+            <div class="setting-item">
+                <div class="item-label">Pilot Access Code</div>
+                <div class="code-display">
+                    <span id="p-code">LOADING...</span>
+                    <i class="fa-regular fa-copy" style="cursor: pointer; color: white;" onclick="copyCode()"></i>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <div class="item-header">
+                    <span class="item-label">Primary Email</span>
+                    <i class="fa-solid fa-envelope" style="opacity: 0.3;"></i>
+                </div>
+                <div style="font-weight: 600;" id="val-email">---</div>
+            </div>
+
+            <div class="setting-item">
+                <div class="item-header">
+                    <span class="item-label">NIN ID (Encrypted)</span>
+                    <i class="fa-solid fa-shield-halved" style="opacity: 0.3;"></i>
+                </div>
+                <div style="font-weight: 600; letter-spacing: 2px;" id="val-nin">**********</div>
+            </div>
+        </div>
+        
+        <p style="text-align: center; color: #64748b; font-size: 0.7rem; margin-top: 30px;">
+            <i class="fa-solid fa-lock"></i> Secured by Aviator Genius Encryption
+        </p>
+    </div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+
+        window.onload = function() {
+            if(!userEmail) { location.href='login.html'; return; }
+            _supa = getClient();
+            loadProfile();
+        };
+
+        async function loadProfile() {
+            var { data } = await _supa.from('profiles').select('*').eq('email', userEmail).single();
+            if(data) {
+                document.getElementById('display-email').innerText = data.email.split('@')[0].toUpperCase();
+                document.getElementById('val-email').innerText = data.email;
+                document.getElementById('p-code').innerText = data.profile_code || "GEN-ALPHA-001";
+                
+                if(data.nin) {
+                    document.getElementById('val-nin').innerText = "******" + data.nin.slice(-4);
+                }
+
+                if(data.avatar_url) {
+                    document.getElementById('pfp').src = data.avatar_url;
+                }
+
+                // Dynamic Rank logic
+                if(data.role === 'ADMIN') {
+                    document.getElementById('rank-name').innerText = "ELITE COMMANDER";
+                    document.getElementById('rank-name').style.background = "linear-gradient(90deg, #ff4d4d, #9333ea)";
+                    document.getElementById('rank-name').style.color = "white";
+                    document.getElementById('acc-type').innerText = "Admin Console";
+                }
+            }
+        }
+
+        async function uploadPfp() {
+            var file = document.getElementById('file-input').files[0];
+            if(!file) return;
+
+            showToast("Syncing with satellite...", true);
+            var fileName = "pfp_" + Date.now() + "_" + userEmail.replace(/[^a-zA-Z0-9]/g, '');
+            
+            var { data, error } = await _supa.storage.from('avatars').upload(fileName, file);
+            if(error) return showToast("Upload failed: " + error.message, false);
+
+            var publicURL = _supa.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
+
+            await _supa.from('profiles').update({ avatar_url: publicURL }).eq('email', userEmail);
+            
+            document.getElementById('pfp').src = publicURL;
+            showToast("Identity Image Updated!", true);
+        }
+
+        function copyCode() {
+            var code = document.getElementById('p-code').innerText;
+            navigator.clipboard.writeText(code);
+            showToast("Access Code Copied!", true);
+        }
+
+        function showToast(m, s) {
+            var t = document.getElementById('toast');
+            t.innerText = m; t.style.background = s ? "rgba(46, 204, 113, 0.9)" : "rgba(231, 76, 60, 0.9)";
+            t.style.backdropFilter = "blur(10px)";
+            t.style.display = "block";
+            setTimeout(() => t.style.display="none", 3000);
+        }
+    </script>
+</body>
+</html>

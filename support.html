@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Support - Aviator Genius</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --bg: #020617; 
+            --accent: #1e1b4b;
+            --card: rgba(15, 23, 42, 0.7);
+            --text-dim: #94a3b8;
+            --success: #10b981;
+        }
+
+        body { 
+            background: radial-gradient(circle at top right, var(--accent) 0%, var(--bg) 100%);
+            color: white; 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header { 
+            padding: 20px; 
+            display: flex; 
+            align-items: center; 
+            background: rgba(0,0,0,0.4); 
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .back-btn { 
+            width: 40px; height: 40px; border-radius: 12px;
+            background: rgba(255,255,255,0.05); display: flex;
+            align-items: center; justify-content: center; cursor: pointer;
+            text-decoration: none; color: white;
+        }
+
+        /* Support Content */
+        .support-container { 
+            text-align: center; 
+            padding: 40px 20px;
+            flex-grow: 1;
+        }
+        
+        .hero-icon-wrap {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 25px;
+        }
+        .support-icon { font-size: 4.5rem; color: var(--primary); filter: drop-shadow(0 0 15px rgba(0, 123, 255, 0.4)); }
+        .online-dot {
+            position: absolute; bottom: 5px; right: 5px;
+            width: 15px; height: 15px; background: var(--success);
+            border-radius: 50%; border: 3px solid var(--bg);
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        h1 { font-size: 2rem; font-weight: 900; margin: 0 0 10px 0; letter-spacing: -1px; }
+        .desc { color: var(--text-dim); margin-bottom: 40px; line-height: 1.6; font-size: 0.95rem; }
+
+        .contact-card {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.05);
+            max-width: 350px;
+            margin: 0 auto;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+        .email-text { font-weight: 800; font-size: 1rem; color: #fff; display: block; margin-bottom: 15px; font-family: 'Courier New', monospace; }
+        
+        .copy-btn { 
+            background: var(--primary); border: none; color: white; 
+            padding: 12px 25px; border-radius: 12px; font-weight: bold;
+            font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; 
+            justify-content: center; gap: 10px; margin: 0 auto;
+            transition: 0.3s; width: 100%;
+        }
+        .copy-btn:active { transform: scale(0.95); opacity: 0.8; }
+
+        /* Footer Options */
+        .footer-options { padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .opt-btn {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+            color: white; padding: 20px 10px; border-radius: 20px; cursor: pointer;
+            text-align: center; transition: 0.3s;
+        }
+        .opt-btn i { display: block; font-size: 1.5rem; margin-bottom: 10px; color: var(--primary); }
+        .opt-btn span { font-size: 0.75rem; font-weight: 800; letter-spacing: 1px; }
+        .opt-btn:hover { background: var(--accent); border-color: var(--primary); }
+
+        /* Modal Engine */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(2, 6, 23, 0.95); display: none; justify-content: center;
+            align-items: center; z-index: 2000; padding: 20px; backdrop-filter: blur(10px);
+        }
+        .modal-content {
+            background: #0f172a; width: 100%; max-width: 500px; max-height: 85vh;
+            border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column; overflow: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            padding: 20px 25px; border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2);
+        }
+        .modal-header span { font-weight: 900; letter-spacing: 2px; font-size: 0.8rem; }
+        .close-modal { color: var(--text-dim); font-size: 1.2rem; cursor: pointer; background: none; border: none; }
+        
+        .modal-body {
+            padding: 25px; overflow-y: auto; line-height: 1.7; color: #cbd5e1;
+        }
+        .modal-body h3 { color: white; margin-top: 25px; font-size: 1rem; font-weight: 800; border-left: 3px solid var(--primary); padding-left: 10px; }
+        .modal-body p { font-size: 0.85rem; margin-bottom: 15px; }
+        
+        .legal-stamp {
+            background: rgba(0,0,0,0.3); padding: 20px; border-radius: 15px;
+            font-family: 'Courier New', monospace; font-size: 0.7rem; margin-top: 30px;
+            border: 1px solid rgba(255,255,255,0.05); color: var(--text-dim);
+        }
+
+        #toast {
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+            background: var(--success); color: white; padding: 12px 25px;
+            border-radius: 50px; font-size: 0.8rem; font-weight: bold; display: none; z-index: 3000;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast">SUPPORT EMAIL COPIED</div>
+
+    <div class="header">
+        <a href="home.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
+        <span style="margin-left: 15px; font-weight: 900; letter-spacing: 2px; font-size: 0.8rem;">MISSION CONTROL</span>
+    </div>
+
+    <div class="support-container">
+        <div class="hero-icon-wrap">
+            <div class="support-icon"><i class="fa-solid fa-headset"></i></div>
+            <div class="online-dot"></div>
+        </div>
+        <h1>24/7 Support</h1>
+        <p class="desc">Our specialized flight engineers are standing by to assist with any technical or financial inquiries.</p>
+
+        <div class="contact-card">
+            <div class="label">Official Email Channel</div>
+            <span class="email-text" id="email-val">gamingcollective25@gmail.com</span>
+            <button class="copy-btn" onclick="copyEmail()">
+                <i class="fa-regular fa-copy"></i> COPY ADDRESS
+            </button>
+        </div>
+    </div>
+
+    <div class="footer-options">
+        <div class="opt-btn" onclick="openModal('aboutModal')">
+            <i class="fa-solid fa-rocket"></i>
+            <span>SYSTEM INFO</span>
+        </div>
+        <div class="opt-btn" onclick="openModal('termsModal')">
+            <i class="fa-solid fa-scale-balanced"></i>
+            <span>TERMS & LAWS</span>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="aboutModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>SYSTEM ARCHITECTURE</span>
+                <button class="close-modal" onclick="closeModal('aboutModal')"><i class="fa-solid fa-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <h3>Global Operations</h3>
+                <p>Aviator Genius is powered by the 1XBET Global API, providing real-time high-velocity multiplayer interactions. Our platform handles over 1.2 million flights daily with 99.9% uptime.</p>
+                <h3>Provably Fair RNG</h3>
+                <p>Every flight multiplier is generated using a decentralized seed system. The outcome is decided before the flight begins and can be verified using any SHA-256 hash calculator to ensure zero manipulation.</p>
+                <h3>Data Encryption</h3>
+                <p>All financial transactions and user data are protected by 256-bit SSL encryption. We do not store payment card details; all billing is handled via secure, licensed gateways.</p>
+                <div class="legal-stamp">
+                    STATION: AG-HQ-INTERNATIONAL<br>
+                    SERVER: CLUSTER-7 (ACTIVE)<br>
+                    ENCRYPTION: AES-256-GCM<br>
+                    © 2026 Gaming Collective.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="termsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>TERMS OF ENGAGEMENT</span>
+                <button class="close-modal" onclick="closeModal('termsModal')"><i class="fa-solid fa-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.7rem; color: var(--primary); font-weight: bold;">VERSION 4.2.0 - UPDATED FEB 2026</p>
+                
+                <h3>1. Account Governance</h3>
+                <p>Users are permitted only one (1) account per person/IP address. Creation of multiple accounts for the purpose of bonus exploitation will result in a permanent system blacklist and forfeiture of all accumulated funds.</p>
+                
+                <h3>2. Financial Protocols</h3>
+                <p>Deposits are processed through automated smart-routing. Withdrawals are subject to a 1-24 hour auditing window. A standard 10% maintenance fee applies to all payout requests to cover network gas fees and platform overhead.</p>
+
+                <h3>3. Bonus & Multipliers</h3>
+                <p>The "First Deposit Bonus" (600%) is subject to a 7x wagering requirement. Bonus funds are converted to withdrawable balance only after the user's total stake volume meets the required threshold.</p>
+
+                <h3>4. Technical Liability</h3>
+                <p>Gaming Collective is not liable for losses resulting from user-side latency, signal drops, or hardware failure. If a user loses connection before clicking "Cash Out," the flight is considered lost as the server continues to process in real-time.</p>
+
+                <h3>5. Prohibited Conduct</h3>
+                <p>The use of "Predictor Bots," "Signal Hackers," or any third-party software claiming to influence the outcome is strictly prohibited. Our anti-cheat engine monitors betting patterns; irregular activity will trigger a manual account audit.</p>
+
+                <h3>6. Termination</h3>
+                <p>We reserve the right to suspend any account suspected of fraudulent behavior, laundering, or abusive language towards our support staff without prior notice.</p>
+                
+                <div style="height: 30px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyEmail() {
+            const email = document.getElementById('email-val').innerText;
+            navigator.clipboard.writeText(email);
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
+
+        function openModal(id) {
+            document.getElementById(id).style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        window.onclick = function(event) {
+            if (event.target.className === 'modal-overlay') {
+                event.target.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+    </script>
+</body>
+</html>

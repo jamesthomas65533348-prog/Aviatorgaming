@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shield Command - Admin Control</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #3b82f6; 
+            --bg: #020617; 
+            --card: rgba(15, 23, 42, 0.8); 
+            --success: #10b981; 
+            --error: #ef4444; 
+            --warning: #f59e0b; 
+            --glass: rgba(255, 255, 255, 0.03);
+        }
+
+        body { 
+            background: radial-gradient(circle at bottom left, #0f172a 0%, #020617 100%);
+            color: white; font-family: 'Inter', system-ui, sans-serif; 
+            padding: 0; margin: 0; min-height: 100vh;
+        }
+
+        /* --- TOP HUD --- */
+        .admin-header {
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(20px);
+            padding: 20px; position: sticky; top: 0; z-index: 1000;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .shield-logo { font-weight: 900; letter-spacing: 2px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; }
+        .live-indicator { width: 8px; height: 8px; background: var(--error); border-radius: 50%; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+
+        /* --- TABS --- */
+        .tab-bar { display: flex; padding: 15px; gap: 10px; }
+        .tab { 
+            flex: 1; padding: 12px; text-align: center; border-radius: 12px; 
+            background: var(--glass); font-size: 0.75rem; font-weight: 800; 
+            cursor: pointer; border: 1px solid transparent; transition: 0.3s;
+            color: #64748b;
+        }
+        .tab.active { background: var(--primary); color: white; border-color: rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
+
+        /* --- CARDS --- */
+        .content-area { padding: 0 15px 100px; }
+        .item-card { 
+            background: var(--card); border-radius: 20px; padding: 20px; margin-bottom: 15px; 
+            border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .resend-banner { 
+            background: linear-gradient(90deg, #ef444433, transparent); border-left: 4px solid var(--error);
+            color: var(--error); font-size: 0.65rem; padding: 8px 12px; font-weight: 900;
+            margin: -20px -20px 15px -20px; display: flex; align-items: center; gap: 8px;
+        }
+
+        .user-row { display: flex; align-items: center; gap: 15px; }
+        .avatar { width: 45px; height: 45px; border-radius: 14px; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); }
+        .email-display { font-weight: 800; font-size: 0.9rem; }
+        .amount-display { font-size: 1.4rem; font-weight: 900; margin: 15px 0; color: #fff; }
+
+        /* --- INPUTS & BUTTONS --- */
+        .otp-box { 
+            background: #000; border: 1px solid #333; color: white; padding: 14px; 
+            border-radius: 12px; font-size: 1rem; width: 100%; box-sizing: border-box;
+            font-family: 'Courier New', monospace; letter-spacing: 2px;
+        }
+        .otp-box.alert { border-color: var(--error); box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
+
+        .btn-row { display: flex; gap: 10px; margin-top: 15px; }
+        .btn { 
+            flex: 1; border: none; padding: 14px; border-radius: 12px; 
+            font-weight: 900; font-size: 0.75rem; cursor: pointer; color: white;
+            text-transform: uppercase; letter-spacing: 1px; transition: 0.2s;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--error); }
+        .btn-action { background: var(--primary); }
+
+        /* --- NOTIFICATION FLOATING ICON --- */
+        .fab-notif {
+            position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px;
+            background: var(--primary); color: white; border: none; border-radius: 50%;
+            font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.5); z-index: 1000; transition: 0.3s;
+        }
+        .fab-notif:hover { transform: translateY(-5px) rotate(15deg); }
+
+        /* --- BROADCAST MODAL --- */
+        #broadcast-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+            display: none; align-items: center; justify-content: center; z-index: 11000; padding: 20px;
+        }
+        .broadcast-box {
+            background: #0f172a; border: 1px solid var(--primary); padding: 25px;
+            border-radius: 24px; width: 100%; max-width: 450px;
+        }
+        .broadcast-textarea {
+            width: 100%; height: 120px; background: #000; color: white; border: 1px solid #1e293b;
+            border-radius: 12px; padding: 15px; box-sizing: border-box; font-family: inherit; resize: none; margin-top: 15px;
+        }
+
+        /* --- TOAST --- */
+        #toast-wrap { position: fixed; top: 20px; left: 20px; right: 20px; z-index: 12000; }
+        .toast { 
+            background: #1e293b; border: 1px solid rgba(255,255,255,0.1); padding: 15px; 
+            border-radius: 15px; display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4); transform: translateY(-100px); transition: 0.4s;
+        }
+        .toast.show { transform: translateY(0); }
+
+        /* --- MODAL --- */
+        #confirm-modal { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(8px); 
+            z-index: 10000; display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-box { 
+            background: #0f172a; border: 1px solid #1e293b; padding: 30px; 
+            border-radius: 24px; text-align: center; width: 100%; max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast-wrap"></div>
+
+    <div id="confirm-modal">
+        <div class="modal-box">
+            <i class="fa-solid fa-shield-halved" style="font-size: 3rem; color: var(--primary); margin-bottom: 15px;"></i>
+            <h3 id="m-title" style="margin:0;">CONFIRM</h3>
+            <p id="m-desc" style="font-size: 0.85rem; opacity: 0.6; line-height: 1.5; margin: 15px 0 25px;"></p>
+            <div class="btn-row">
+                <button class="btn" style="background: #334155;" onclick="closeModal()">CANCEL</button>
+                <button class="btn btn-action" id="m-confirm-btn">EXECUTE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="broadcast-modal">
+        <div class="broadcast-box">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-weight:900;"><i class="fa-solid fa-paper-plane" style="color:var(--primary); margin-right:10px;"></i> BROADCAST</h3>
+                <i class="fa-solid fa-times" onclick="closeBroadcastModal()" style="cursor:pointer; opacity:0.5;"></i>
+            </div>
+            
+            <textarea id="broadcast-msg" class="broadcast-textarea" placeholder="Type your notification message to all users..."></textarea>
+            
+            <div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
+                <label style="flex:1; background:var(--glass); border:1px solid #1e293b; padding:12px; border-radius:12px; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:10px;">
+                    <i class="fa-solid fa-camera" style="color:var(--primary);"></i>
+                    <span id="file-status" style="font-size:0.7rem; font-weight:800; color:#64748b;">UPLOAD IMAGE</span>
+                    <input type="file" id="broadcast-file" hidden accept="image/*" onchange="updateFileLabel(this)">
+                </label>
+                
+                <button onclick="sendBroadcast()" id="send-btn" class="btn btn-success" style="flex:1;">SEND ALL</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-header">
+        <div class="shield-logo">
+            <i class="fa-solid fa-user-shield" style="color: var(--primary);"></i>
+            COMMAND SHIELD
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="live-indicator"></div>
+            <span style="font-size: 0.6rem; font-weight: 800; color: #64748b;">LIVE DB</span>
+        </div>
+    </div>
+
+    <div class="tab-bar">
+        <div class="tab active" onclick="loadSection('users', this)">OTP REQUESTS</div>
+        <div class="tab" onclick="loadSection('deposits', this)">REFUELS</div>
+        <div class="tab" onclick="loadSection('withdrawals', this)">PAYOUTS</div>
+    </div>
+
+    <div class="content-area" id="main-content">
+        <p style="text-align: center; margin-top: 50px; opacity: 0.5;">Establishing secure connection...</p>
+    </div>
+
+    <button class="fab-notif" onclick="openBroadcastModal()">
+        <i class="fa-solid fa-paper-plane"></i>
+    </button>
+
+    <script>
+        var _supa;
+        var currentSection = 'users';
+
+        window.onload = function() {
+            if (!isAdmin()) { 
+                alert("ACCESS RESTRICTED TO FLIGHT COMMAND"); 
+                location.href = 'home.html'; 
+                return; 
+            }
+            _supa = getClient();
+            loadSection('users');
+
+            setInterval(() => {
+                if(currentSection === 'users') loadSection('users', null, true);
+            }, 5000);
+        };
+
+        /* --- BROADCAST LOGIC --- */
+        function openBroadcastModal() {
+            document.getElementById('broadcast-modal').style.display = 'flex';
+        }
+
+        function closeBroadcastModal() {
+            document.getElementById('broadcast-modal').style.display = 'none';
+        }
+
+        function updateFileLabel(input) {
+            const label = document.getElementById('file-status');
+            if (input.files && input.files[0]) {
+                label.innerText = "IMAGE READY";
+                label.style.color = "var(--success)";
+            }
+        }
+
+        async function sendBroadcast() {
+            const msg = document.getElementById('broadcast-msg').value;
+            const fileInput = document.getElementById('broadcast-file');
+            const btn = document.getElementById('send-btn');
+
+            if (!msg.trim()) {
+                showToast("ERROR", "Message cannot be empty", "error");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "DEPLOYING...";
+            
+            let imageUrl = null;
+
+            try {
+                if (fileInput.files && fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    const fileName = `${Date.now()}_notif.png`;
+                    
+                    const { data, error: uploadError } = await _supa.storage
+                        .from('notifications')
+                        .upload(fileName, file);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: publicData } = _supa.storage
+                        .from('notifications')
+                        .getPublicUrl(fileName);
+                    
+                    imageUrl = publicData.publicUrl;
+                }
+
+                const { error: insertError } = await _supa.from('notifications').insert([
+                    { message: msg, image_url: imageUrl }
+                ]);
+
+                if (insertError) throw insertError;
+
+                showToast("BROADCAST SENT", "Notification delivered to all users");
+                document.getElementById('broadcast-msg').value = '';
+                document.getElementById('broadcast-file').value = '';
+                document.getElementById('file-status').innerText = "UPLOAD IMAGE";
+                document.getElementById('file-status').style.color = "#64748b";
+                closeBroadcastModal();
+
+            } catch (err) {
+                console.error(err);
+                showToast("FAILED", "Could not deliver broadcast", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "SEND ALL";
+            }
+        }
+
+        /* --- UI & DATA LOGIC --- */
+        function showToast(title, msg, type = 'success') {
+            const wrap = document.getElementById('toast-wrap');
+            const t = document.createElement('div');
+            t.className = 'toast';
+            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+            const color = type === 'success' ? 'var(--success)' : 'var(--error)';
+            
+            t.innerHTML = `
+                <i class="fa-solid ${icon}" style="color:${color}; font-size:1.5rem;"></i>
+                <div>
+                    <div style="font-weight:900; font-size:0.75rem;">${title}</div>
+                    <div style="font-size:0.65rem; opacity:0.6;">${msg}</div>
+                </div>
+            `;
+            wrap.appendChild(t);
+            setTimeout(() => t.classList.add('show'), 100);
+            setTimeout(() => {
+                t.classList.remove('show');
+                setTimeout(() => t.remove(), 500);
+            }, 3000);
+        }
+
+        function openModal(title, desc, onConfirm, danger = false) {
+            const m = document.getElementById('confirm-modal');
+            document.getElementById('m-title').innerText = title;
+            document.getElementById('m-desc').innerText = desc;
+            const btn = document.getElementById('m-confirm-btn');
+            btn.className = danger ? 'btn btn-danger' : 'btn btn-action';
+            btn.onclick = () => { onConfirm(); closeModal(); };
+            m.style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('confirm-modal').style.display = 'none'; }
+
+        async function loadSection(sec, el, isSilent = false) {
+            currentSection = sec;
+            if(el) {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                el.classList.add('active');
+            }
+            
+            const area = document.getElementById('main-content');
+            if(!isSilent) area.innerHTML = '<p style="text-align:center; padding-top:50px; opacity:0.3;">Fetching Data...</p>';
+
+            try {
+                if(sec === 'users') {
+                    const { data, error } = await _supa
+                        .from('profiles')
+                        .select('*')
+                        .or('otp_status.eq.PENDING,otp_status.eq.RESEND_REQUESTED')
+                        .order('created_at', {ascending: false});
+
+                    if(error) throw error;
+
+                    if(!data || data.length === 0) {
+                        area.innerHTML = '<p style="text-align:center; opacity:0.3; margin-top:50px;">NO ACTIVE OTP REQUESTS</p>';
+                    } else {
+                        area.innerHTML = data.map(u => {
+                            const alert = u.otp_status === 'RESEND_REQUESTED';
+                            return `
+                            <div class="item-card">
+                                ${alert ? `<div class="resend-banner"><i class="fa-solid fa-triangle-exclamation"></i> NEW OTP REQUIRED</div>` : ''}
+                                <div class="user-row">
+                                    <img src="https://ui-avatars.com/api/?name=${u.email}&background=1e293b&color=3b82f6" class="avatar">
+                                    <div style="flex:1">
+                                        <div class="email-display">${u.email.toUpperCase()}</div>
+                                        <div style="font-size:0.6rem; color:var(--primary); font-weight:800;">CODE: ${u.profile_code || '---'}</div>
+                                    </div>
+                                    <i class="fa-solid fa-clock" style="color:var(--warning)"></i>
+                                </div>
+                                <div class="btn-row">
+                                    <input type="text" id="otp-${u.id}" class="otp-box ${alert ? 'alert' : ''}" placeholder="SET OTP CODE" value="${u.otp_code || ''}">
+                                    <button class="btn btn-action" style="flex:none; width:80px;" onclick="saveOTP('${u.id}', 'otp-${u.id}')">SAVE</button>
+                                </div>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+
+                if(sec === 'deposits') {
+                    const { data, error } = await _supa.from('deposits').select('*').eq('status', 'PENDING');
+                    if(error) throw error;
+
+                    if(!data || data.length === 0) {
+                        area.innerHTML = '<p style="text-align:center; opacity:0.3; margin-top:50px;">NO PENDING REFUELS</p>';
+                    } else {
+                        area.innerHTML = data.map(d => `
+                        <div class="item-card">
+                            <div style="font-size:0.6rem; opacity:0.5; margin-bottom:5px;">${d.email}</div>
+                            <div class="amount-display">₦${parseFloat(d.amount).toLocaleString()}</div>
+                            <button class="btn" style="background:#1e293b; margin-bottom:15px;" onclick="window.open('${d.receipt_url}')">VIEW RECEIPT</button>
+                            <div class="btn-row">
+                                <button class="btn btn-success" onclick="approveDep('${d.id}', '${d.email}', ${d.amount})">APPROVE</button>
+                                <button class="btn btn-danger" onclick="rejectReq('deposits', '${d.id}')">REJECT</button>
+                            </div>
+                        </div>`).join('');
+                    }
+                }
+
+                if(sec === 'withdrawals') {
+                    const { data, error } = await _supa.from('withdrawals').select('*').eq('status', 'PENDING');
+                    if(error) throw error;
+
+                    if(!data || data.length === 0) {
+                        area.innerHTML = '<p style="text-align:center; opacity:0.3; margin-top:50px;">NO PENDING PAYOUTS</p>';
+                    } else {
+                        area.innerHTML = data.map(w => `
+                        <div class="item-card">
+                            <div style="font-size:0.6rem; opacity:0.5;">${w.email}</div>
+                            <div class="amount-display" style="color:var(--success)">PAY: ₦${parseFloat(w.amount).toLocaleString()}</div>
+                            <div style="background:#000; padding:15px; border-radius:12px; font-size:0.8rem; border:1px solid #111;">
+                                <div style="color:var(--primary); font-size:0.6rem; font-weight:900;">DESTINATION</div>
+                                <b>BANK:</b> ${w.bank_name}<br><b>ACC:</b> ${w.acc_num}
+                            </div>
+                            <div class="btn-row">
+                                <button class="btn btn-success" onclick="approveWith('${w.id}')">MARK AS PAID</button>
+                                <button class="btn btn-danger" onclick="rejectWith('${w.id}', '${w.email}', ${w.original_amount})">REFUND 100%</button>
+                            </div>
+                        </div>`).join('');
+                    }
+                }
+            } catch (err) { 
+                console.error(err);
+                area.innerHTML = '<p style="text-align:center; color:var(--error); margin-top:50px;">CONNECTION OFFLINE <br><span style="font-size:0.7rem; opacity:0.5;">CHECK DATABASE STATUS</span></p>';
+            }
+        }
+
+        async function saveOTP(id, inputId) {
+            const val = document.getElementById(inputId).value;
+            await _supa.from('profiles').update({ otp_code: val, otp_status: 'PENDING' }).eq('id', id);
+            showToast("OTP SYNCED", "User security code updated successfully");
+            loadSection('users', null, true);
+        }
+
+        function approveDep(id, email, amt) {
+            openModal("APPROVE REFUEL", `Credit ₦${amt.toLocaleString()} to ${email}?`, async () => {
+                const { data: p } = await _supa.from('profiles').select('balance').eq('email', email).single();
+                await _supa.from('profiles').update({ balance: (p.balance || 0) + parseFloat(amt), first_deposit_done: true }).eq('email', email);
+                await _supa.from('deposits').update({ status: 'APPROVED' }).eq('id', id);
+                showToast("WALLET CREDITED", "User balance updated");
+                loadSection('deposits');
+            });
+        }
+
+        function rejectWith(id, email, refund) {
+            openModal("REJECT & REFUND", `Reject payout and return ₦${refund.toLocaleString()} to ${email}?`, async () => {
+                const { data: p } = await _supa.from('profiles').select('balance').eq('email', email).single();
+                await _supa.from('profiles').update({ balance: (p.balance || 0) + parseFloat(refund) }).eq('email', email);
+                await _supa.from('withdrawals').update({ status: 'REJECTED' }).eq('id', id);
+                showToast("REFUNDED", "Full original amount returned to pilot");
+                loadSection('withdrawals');
+            }, true);
+        }
+
+        async function approveWith(id) {
+            await _supa.from('withdrawals').update({ status: 'APPROVED' }).eq('id', id);
+            showToast("PAYOUT LOGGED", "Status marked as PAID");
+            loadSection('withdrawals');
+        }
+
+        async function rejectReq(table, id) {
+            await _supa.from(table).update({ status: 'REJECTED' }).eq('id', id);
+            showToast("REJECTED", "Transaction marked as rejected");
+            loadSection(table);
+        }
+    </script>
+</body>
+</html>
