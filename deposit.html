@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fuel Tank - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --bg: #02050a; 
+            --accent: #0a192f;
+            --success: #2ecc71; 
+            --error: #ff4d4d; 
+            --warning: #fbbf24; 
+            --purple: #9333ea; 
+            --card: rgba(15, 23, 42, 0.95);
+        }
+
+        body { 
+            background: radial-gradient(circle at top, var(--accent) 0%, var(--bg) 100%);
+            color: white; font-family: 'Segoe UI', sans-serif; 
+            margin: 0; padding: 0; min-height: 100vh; overflow-x: hidden;
+        }
+
+        /* --- FLOATING BRANDING --- */
+        .floating-brand {
+            position: fixed; bottom: 20px; right: 20px;
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
+            padding: 8px 15px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1);
+            z-index: 2000; display: flex; align-items: center; gap: 8px;
+            font-size: 0.65rem; font-weight: 900; pointer-events: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-transform: uppercase;
+        }
+
+        /* --- HEADER --- */
+        .deposit-header {
+            padding: 20px; display: flex; align-items: center; justify-content: space-between;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .back-btn { width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+        /* --- MODAL SYSTEM --- */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px); display: none; 
+            align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+        }
+        .modal-content {
+            background: var(--card); width: 100%; max-width: 400px;
+            border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);
+            padding: 25px; position: relative; box-sizing: border-box;
+            animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes modalPop { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* --- VIDEO & LAYER 1 --- */
+        .video-container { padding: 20px; text-align: center; }
+        .video-card { max-width: 320px; margin: 0 auto; border-radius: 20px; overflow: hidden; background: var(--card); border: 1px solid rgba(0, 123, 255, 0.3); position: relative; }
+        video { width: 100%; height: 160px; object-fit: cover; }
+        .video-label { padding: 10px; font-size: 0.7rem; font-weight: bold; color: var(--primary); background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;}
+
+        /* --- INPUTS & BUTTONS --- */
+        .input-group { padding: 0 20px; margin-top: 20px; }
+        .amount-input-wrapper { position: relative; }
+        .amount-input-wrapper span { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); font-size: 1.2rem; font-weight: bold; color: var(--primary); }
+        input[type="number"] { width: 100%; padding: 18px 18px 18px 45px; border-radius: 16px; background: rgba(0,0,0,0.3); border: 2px solid #1e293b; color: white; font-size: 1.3rem; font-weight: bold; box-sizing: border-box; outline: none; }
+        
+        .main-btn { width: 100%; padding: 20px; border-radius: 16px; border: none; background: var(--primary); color: white; font-size: 1rem; font-weight: 900; text-transform: uppercase; cursor: pointer; box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3); margin-top: 20px; }
+        .main-btn:disabled { background: #1e293b; color: #475569; box-shadow: none; }
+
+        /* --- BANK DETAILS --- */
+        .bank-card { background: rgba(0,0,0,0.3); border-radius: 20px; padding: 15px; margin: 15px 0; border: 1px solid rgba(255,255,255,0.05); }
+        .bank-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.85rem; }
+        
+        /* Icon-only Copy Button Styling */
+        .copy-btn-ui {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .copy-btn-ui.copied {
+            background: var(--success);
+        }
+
+        /* --- UPLOAD --- */
+        .upload-btn { border: 2px dashed #334155; padding: 30px; border-radius: 20px; text-align: center; cursor: pointer; background: rgba(255,255,255,0.02); }
+
+        /* --- TOAST --- */
+        #toast { position: fixed; top: 30px; left: 50%; transform: translateX(-50%); padding: 15px 30px; border-radius: 50px; display: none; z-index: 3000; font-weight: bold; animation: slideDown 0.4s ease-out; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        @keyframes slideDown { from { top: -50px; } to { top: 30px; } }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+
+    <div class="floating-brand">
+        <i class="fa-solid fa-circle-check" style="color:var(--success)"></i>
+        POWERED & OWNED BY 1XBET
+    </div>
+
+    <div id="layer-1">
+        <div class="deposit-header">
+            <div class="back-btn" onclick="location.href='home.html'"><i class="fa-solid fa-chevron-left"></i></div>
+            <div style="font-weight: 900; letter-spacing: 2px; font-size: 0.9rem;">FUEL TANK</div>
+            <i class="fa-solid fa-shield-halved" style="color: var(--success);"></i>
+        </div>
+
+        <div class="video-container">
+            <div class="video-card">
+                <video id="tutorial-vid" poster="https://img.freepik.com/free-vector/abstract-digital-technology-background-with-network-connection-lines_1017-25552.jpg">
+                    <source src="tutorial.mp4" type="video/mp4">
+                </video>
+                <div class="video-label" onclick="playVideo()">
+                    <i class="fa-solid fa-circle-play"></i> DEPOSIT GUIDE
+                </div>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <div style="font-size: 0.65rem; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">Recharge Amount</div>
+            <div class="amount-input-wrapper">
+                <span>₦</span>
+                <input type="number" id="amount" placeholder="1,000">
+            </div>
+            <button class="main-btn" onclick="goToLayer2()">Proceed to Details</button>
+        </div>
+    </div>
+
+    <div id="layer-2" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: var(--primary);">PAYMENT ID</h3>
+            <p style="font-size: 0.8rem; opacity: 0.8;">Deposit <span id="confirm-amt" style="color:var(--success); font-weight: bold;"></span> on the ID below:</p>
+            
+            <div class="bank-card">
+                <div class="bank-row">
+                    <span style="opacity:0.6">Destination</span>
+                    <span style="font-weight:bold">1XBET GLOBAL</span>
+                </div>
+                <div class="bank-row">
+                    <div>
+                        <span style="opacity:0.6; display: block; font-size: 0.7rem; margin-bottom: 2px;">Account ID</span>
+                        <span style="font-weight:900; color:white; font-family: monospace; font-size: 1.15rem;">1559544385</span>
+                    </div>
+                    <button id="copy-btn" class="copy-btn-ui" onclick="copyAccount('1559544385')">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                </div>
+                
+                <div class="bank-row" style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px">
+                    <span style="opacity:0.6">Payee</span>
+                    <span style="font-size: 0.7rem;">GAMING COLLECTIVE LTD</span>
+                </div>
+            </div>
+
+            <button class="main-btn" onclick="goToLayer3()">I have transferred</button>
+            <p onclick="closeModals()" style="text-align:center; font-size:0.7rem; opacity:0.5; margin-top:15px; cursor:pointer">CANCEL</p>
+        </div>
+    </div>
+
+    <div id="layer-3" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="margin-top: 0;">FINAL STEP</h3>
+            <p style="font-size: 0.8rem; opacity: 0.8; margin-bottom: 20px;">Please upload your payment receipt to verify.</p>
+            
+            <div class="upload-btn" onclick="document.getElementById('file-input').click()">
+                <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: var(--primary); margin-bottom: 10px;"></i>
+                <div id="file-status" style="font-size: 0.8rem; font-weight: bold;">UPLOAD RECEIPT</div>
+                <input type="file" id="file-input" style="display:none" accept="image/*" onchange="fileSelected()">
+            </div>
+
+            <button id="submit-btn" class="main-btn" onclick="handleDeposit()">Verify & Submit</button>
+            <p onclick="closeModals()" style="text-align:center; font-size:0.7rem; opacity:0.5; margin-top:15px; cursor:pointer">BACK</p>
+        </div>
+    </div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+
+        window.onload = function() { 
+            _supa = getClient(); 
+        };
+
+        function goToLayer2() {
+            var amt = document.getElementById('amount').value;
+            if(!amt || amt < 1000) return showToast("Minimum is ₦1,000", false);
+            document.getElementById('confirm-amt').innerText = "₦" + Number(amt).toLocaleString();
+            document.getElementById('layer-2').style.display = 'flex';
+        }
+
+        function goToLayer3() {
+            document.getElementById('layer-2').style.display = 'none';
+            document.getElementById('layer-3').style.display = 'flex';
+        }
+
+        function closeModals() {
+            document.getElementById('layer-2').style.display = 'none';
+            document.getElementById('layer-3').style.display = 'none';
+        }
+
+        function playVideo() {
+            var v = document.getElementById('tutorial-vid');
+            if (v.requestFullscreen) v.requestFullscreen();
+            else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+            v.play();
+        }
+
+        // Updated Copy Logic with Icon Feedback
+        function copyAccount(text) {
+            navigator.clipboard.writeText(text);
+            const btn = document.getElementById('copy-btn');
+            const icon = btn.querySelector('i');
+            
+            // Change to Green Tick
+            btn.classList.add('copied');
+            icon.className = 'fa-solid fa-check';
+            
+            showToast("Account ID Copied", true);
+
+            // Revert after 2 seconds
+            setTimeout(() => {
+                btn.classList.remove('copied');
+                icon.className = 'fa-solid fa-copy';
+            }, 2000);
+        }
+
+        function fileSelected() {
+            var file = document.getElementById('file-input').files[0];
+            if(file) {
+                document.getElementById('file-status').innerHTML = `<span style="color:var(--success)">✓ ${file.name}</span>`;
+            }
+        }
+
+        async function handleDeposit() {
+            var amt = document.getElementById('amount').value;
+            var file = document.getElementById('file-input').files[0];
+            var btn = document.getElementById('submit-btn');
+
+            if(!amt || amt < 1000) return showToast("Minimum is ₦1,000", false);
+            if(!file) return showToast("Please upload receipt", false);
+
+            btn.disabled = true;
+            btn.innerText = "AUTHENTICATING...";
+
+            try {
+                var fileName = "dep_" + Date.now() + "_" + userEmail.split('@')[0];
+                var upload = await _supa.storage.from('receipts').upload(fileName, file);
+                if(upload.error) throw upload.error;
+
+                var publicURL = _supa.storage.from('receipts').getPublicUrl(fileName).data.publicUrl;
+
+                var { error } = await _supa.from('deposits').insert([
+                    { email: userEmail, amount: amt, receipt_url: publicURL, status: 'PENDING' }
+                ]);
+                if(error) throw error;
+
+                showToast("Refuel Request Sent!", true);
+                setTimeout(() => { location.href = 'home.html'; }, 2500);
+            } catch (err) {
+                showToast(err.message, false);
+                btn.disabled = false;
+                btn.innerText = "Verify & Submit";
+            }
+        }
+
+        function showToast(msg, isSuccess) {
+            var t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isSuccess ? "var(--success)" : "var(--error)";
+            t.style.display = "block";
+            setTimeout(() => { t.style.display = "none"; }, 3000);
+        }
+    </script>
+</body>
+</html>
