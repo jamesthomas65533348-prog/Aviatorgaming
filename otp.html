@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Verify - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --primary-glow: rgba(0, 123, 255, 0.4);
+            --bg-dark: #02050a; 
+            --bg-accent: #0a192f;
+            --card-bg: rgba(10, 20, 35, 0.9);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --success: #2ecc71;
+            --warning: #ffcc00;
+        }
+
+        body { 
+            background: radial-gradient(circle at center, var(--bg-accent) 0%, var(--bg-dark) 100%);
+            color: white; 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            overflow: hidden; 
+            perspective: 1200px;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background-image: 
+                linear-gradient(rgba(0, 123, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 123, 255, 0.05) 1px, transparent 1px);
+            background-size: 60px 60px;
+            transform: rotateX(65deg);
+            z-index: -1;
+            animation: gridMove 15s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: rotateX(65deg) translateY(0); }
+            100% { transform: rotateX(65deg) translateY(60px); }
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            padding: 40px 30px; 
+            border-radius: 30px; 
+            width: 90%; 
+            max-width: 380px; 
+            border: 1px solid rgba(0, 123, 255, 0.25); 
+            text-align: center; 
+            backdrop-filter: blur(25px);
+            box-shadow: 0 30px 70px rgba(0,0,0,0.8);
+            animation: cardSlideIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes cardSlideIn {
+            0% { opacity: 0; transform: translateZ(-200px) scale(0.8); }
+            100% { opacity: 1; transform: translateZ(0) scale(1); }
+        }
+
+        h3 { font-size: 1.6rem; font-weight: 900; margin: 0 0 10px; letter-spacing: 1px; }
+        p { font-size: 0.9rem; opacity: 0.6; line-height: 1.5; margin-bottom: 25px; }
+
+        #otp-input { 
+            width: 100%; 
+            padding: 20px; 
+            margin-bottom: 25px; 
+            border-radius: 18px; 
+            border: 2px solid rgba(255, 255, 255, 0.1); 
+            text-align: center; 
+            font-size: 2.2rem; 
+            letter-spacing: 8px; 
+            font-weight: 900; 
+            background: #fff; 
+            color: #000; 
+            box-sizing: border-box;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        #otp-input:focus {
+            transform: scale(1.05);
+            border-color: var(--primary);
+            box-shadow: 0 0 25px var(--primary-glow);
+        }
+
+        button { 
+            width: 100%; 
+            padding: 16px; 
+            background: linear-gradient(135deg, var(--primary), #0056b3); 
+            color: white; 
+            border: none; 
+            border-radius: 15px; 
+            font-weight: 900; 
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            cursor: pointer; 
+            box-shadow: 0 10px 25px var(--primary-glow);
+        }
+
+        button:active { transform: scale(0.94); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .status-msg { 
+            margin-top: 20px; 
+            font-size: 0.85rem; 
+            padding: 12px; 
+            border-radius: 12px; 
+            background: rgba(0, 123, 255, 0.1); 
+            border: 1px solid rgba(0, 123, 255, 0.2);
+            color: var(--warning); 
+            font-weight: bold; 
+        }
+
+        .resend-container { margin-top: 25px; font-size: 0.85rem; }
+        .resend-link { color: var(--primary); cursor: pointer; font-weight: bold; display: none; }
+        .timer-display { color: #556677; }
+
+        #toast { 
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+            padding: 15px 35px; border-radius: 50px; display: none; z-index: 10000; 
+            color: white; font-weight: bold; backdrop-filter: blur(10px);
+        }
+        .animate-toast { display: block !important; animation: toastPop 0.5s ease forwards; }
+        @keyframes toastPop { 0% { transform: translate(-50%, -50px); opacity: 0; } 100% { transform: translate(-50%, 0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+
+    <div class="card">
+        <h3>Verify Identity</h3>
+        <p>Enter the 6-digit verification code <br> provided to your mail.</p>
+        
+        <input type="number" id="otp-input" placeholder="000000" oninput="if(this.value.length > 6) this.value = this.value.slice(0, 6)">
+        
+        <button id="verify-btn" onclick="handleVerify()">Verify & Join</button>
+        
+        <div id="status-indicator" class="status-msg">
+            <i class='fa-solid fa-paper-plane'></i> Status: Code Sent!
+        </div>
+
+        <div class="resend-container">
+            <span id="resend-timer-text" class="timer-display">Resend code in <b id="timer" style="color:#fff">03:00</b></span>
+            <span id="resend-link" class="resend-link" onclick="requestNewCode()">Request New Code</span>
+        </div>
+    </div>
+
+    <script>
+        (function(){
+            emailjs.init("GeCipLr0kFPCN8feN");
+        })();
+
+        var _supa;
+        // Ensure this matches what you saved in register.html
+        var myEmail = localStorage.getItem('user_email'); 
+        var countdown;
+
+        window.onload = function() {
+            _supa = getClient();
+            if (!myEmail) {
+                location.href='register.html';
+                return;
+            }
+            startTimer(180);
+        };
+
+        function startTimer(seconds) {
+            clearInterval(countdown);
+            const display = document.querySelector('#timer');
+            const timerText = document.querySelector('#resend-timer-text');
+            const resendLink = document.querySelector('#resend-link');
+            
+            resendLink.style.display = "none";
+            timerText.style.display = "inline";
+
+            let timer = seconds;
+            countdown = setInterval(function () {
+                let minutes = parseInt(timer / 60, 10);
+                let secs = parseInt(timer % 60, 10);
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                secs = secs < 10 ? "0" + secs : secs;
+                display.textContent = minutes + ":" + secs;
+
+                if (--timer < 0) {
+                    clearInterval(countdown);
+                    timerText.style.display = "none";
+                    resendLink.style.display = "inline";
+                }
+            }, 1000);
+        }
+
+        async function requestNewCode() {
+            const btn = document.getElementById('resend-link');
+            if (!myEmail) return showToast("Session expired. Register again.", false);
+
+            btn.style.pointerEvents = "none";
+            btn.innerText = "Sending...";
+
+            const newOTP = Math.floor(100000 + Math.random() * 900000);
+
+            try {
+                // FIXED: Change 'to_email' to 'email' to match template settings {{email}}
+                await emailjs.send('service_huev2pt', 'template_r50pcwk', {
+                    email: myEmail,
+                    passcode: newOTP
+                });
+
+                localStorage.setItem('pending_otp', newOTP);
+                
+                showToast("New Code Sent Successfully", true);
+                document.getElementById('otp-input').value = "";
+                startTimer(180);
+                btn.style.pointerEvents = "auto";
+                btn.innerText = "Request New Code";
+            } catch (err) {
+                console.error("Resend Error:", err);
+                showToast("Failed to resend. Check console.", false);
+                btn.style.pointerEvents = "auto";
+                btn.innerText = "Request New Code";
+            }
+        }
+
+        function showToast(msg, isSuccess) {
+            var t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isSuccess ? "#2ecc71" : "#007bff";
+            t.classList.add("animate-toast");
+            setTimeout(function(){ 
+                t.classList.remove("animate-toast"); 
+                t.style.display="none"; 
+            }, 3000);
+        }
+
+        async function handleVerify() {
+            var inputVal = document.getElementById('otp-input').value;
+            var btn = document.getElementById('verify-btn');
+            var correctOTP = localStorage.getItem('pending_otp');
+
+            if (inputVal.length < 6) {
+                showToast("Enter 6-digit code", false);
+                return;
+            }
+
+            btn.innerText = "VERIFYING...";
+            btn.disabled = true;
+
+            if (inputVal === String(correctOTP)) {
+                try {
+                    const { error } = await _supa
+                        .from('profiles')
+                        .update({ otp_status: 'VERIFIED' })
+                        .eq('email', myEmail);
+
+                    if (error) throw error;
+
+                    showToast("Verification Successful!", true);
+                    localStorage.setItem('is_verified', 'true');
+                    setTimeout(function(){ location.href='login.html'; }, 2000);
+                } catch (err) {
+                    showToast("Database Error. Try again.", false);
+                    btn.innerText = "Verify & Join";
+                    btn.disabled = false;
+                }
+            } else {
+                showToast("Incorrect Code.", false);
+                btn.innerText = "Verify & Join";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
