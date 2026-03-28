@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fuel Tank - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://checkout.flutterwave.com/v3.js"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --bg: #02050a; 
+            --accent: #0a192f;
+            --success: #00ff88; 
+            --error: #ff3366; 
+            --purple: #7000ff; 
+            --card: rgba(15, 23, 42, 0.8);
+        }
+
+        /* --- ANTI-COPY PROTOCOL --- */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        input { user-select: auto !important; -webkit-user-select: auto !important; }
+
+        body { 
+            background: radial-gradient(circle at top, var(--accent) 0%, var(--bg) 100%);
+            color: white; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            margin: 0; padding: 0; min-height: 100vh; overflow-x: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* --- HEADER --- */
+        .deposit-header {
+            padding: 25px 20px; display: flex; align-items: center; justify-content: space-between;
+            background: rgba(0,0,0,0.3); backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .back-btn { width: 45px; height: 45px; border-radius: 14px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
+
+        /* --- MAIN UI CARD --- */
+        .main-container {
+            max-width: 450px; width: 90%; margin: 30px auto;
+            background: var(--card); border-radius: 35px;
+            padding: 30px 25px; border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .hero-icon {
+            width: 60px; height: 60px; background: rgba(112, 0, 255, 0.1);
+            border-radius: 20px; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 15px; color: var(--purple); font-size: 1.8rem;
+            border: 1px solid rgba(112, 0, 255, 0.2);
+        }
+
+        .amount-wrapper { position: relative; margin-bottom: 20px; }
+        .amount-wrapper span { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); font-size: 1.5rem; font-weight: 900; color: var(--primary); }
+        
+        input[type="number"] { 
+            width: 100%; padding: 22px 22px 22px 55px; border-radius: 20px; 
+            background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.05); 
+            color: white; font-size: 1.8rem; font-weight: 900; box-sizing: border-box; 
+            outline: none; transition: 0.3s;
+        }
+
+        /* --- FAST CHIPS --- */
+        .chips-container {
+            display: flex; gap: 10px; overflow-x: auto;
+            padding: 5px 0 25px; scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .chips-container::-webkit-scrollbar { display: none; }
+
+        .chip {
+            background: rgba(255,255,255,0.05); padding: 10px 18px;
+            border-radius: 12px; font-size: 0.8rem; font-weight: 800;
+            border: 1px solid rgba(255,255,255,0.1); cursor: pointer;
+            white-space: nowrap; transition: 0.2s;
+        }
+        .chip:active { transform: scale(0.9); background: var(--primary); border-color: var(--primary); }
+
+        /* --- BOUNCY BUTTON --- */
+        .instant-btn { 
+            width: 100%; padding: 22px; border-radius: 20px; border: none; 
+            color: white; font-size: 1.1rem; font-weight: 900; 
+            text-transform: uppercase; cursor: pointer;
+            background: linear-gradient(135deg, var(--purple) 0%, #4f00b3 100%);
+            box-shadow: 0 10px 25px rgba(112, 0, 255, 0.4);
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            transition: transform 0.1s;
+        }
+        .bouncy-anim { animation: bounceEffect 0.4s ease; }
+        @keyframes bounceEffect { 0% { transform: scale(1); } 50% { transform: scale(0.85); } 100% { transform: scale(1); } }
+
+        /* --- NOTIFICATIONS --- */
+        #notification-box {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 350px; padding: 18px 25px; border-radius: 20px;
+            z-index: 9999; display: flex; align-items: center; gap: 15px;
+            backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1);
+            transition: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        #notification-box.show { top: 30px; }
+        .nt-icon { width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .nt-success { background: rgba(0, 255, 136, 0.1); color: var(--success); }
+        .nt-success .nt-icon { background: var(--success); color: #000; }
+        .nt-error { background: rgba(255, 51, 102, 0.1); color: var(--error); }
+        .nt-error .nt-icon { background: var(--error); color: #fff; }
+
+        /* --- BRANDING --- */
+        .brand-footer { margin-top: auto; padding: 25px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .gc-logo {
+            display: flex; align-items: center; gap: 8px;
+            background: #0f172a; padding: 10px 20px;
+            border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .gc-icon { width: 30px; height: 30px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; }
+        .gc-text { font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #cbd5e1; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="notification-box">
+        <div class="nt-icon" id="nt-icon-box"></div>
+        <div class="nt-msg" id="nt-text" style="font-weight: 800; font-size: 0.85rem;"></div>
+    </div>
+
+    <div class="deposit-header">
+        <div class="back-btn" onclick="location.href='home.html'"><i class="fa-solid fa-chevron-left"></i></div>
+        <div style="font-weight: 900; letter-spacing: 2px; font-size: 0.8rem;">REFILL STATION</div>
+        <div style="width: 45px;"></div>
+    </div>
+
+    <div class="main-container">
+        <div class="hero-icon"><i class="fa-solid fa-gas-pump"></i></div>
+        <h2 style="text-align:center; margin: 0; font-weight: 900;">Fuel Tank</h2>
+        <p style="text-align:center; color: #64748b; font-size: 0.75rem; margin-bottom: 25px;">Select or enter refill amount</p>
+
+        <div class="chips-container">
+            <div class="chip" onclick="setAmt(500)">₦500</div>
+            <div class="chip" onclick="setAmt(1000)">₦1,000</div>
+            <div class="chip" onclick="setAmt(2000)">₦2,000</div>
+            <div class="chip" onclick="setAmt(5000)">₦5,000</div>
+            <div class="chip" onclick="setAmt(10000)">₦10,000</div>
+        </div>
+
+        <div class="amount-wrapper">
+            <span>₦</span>
+            <input type="number" id="amount" placeholder="100">
+        </div>
+
+        <button id="instant-pay-btn" class="instant-btn" onclick="triggerPayment()">
+            <i class="fa-solid fa-bolt-lightning"></i> Instant Refuel
+        </button>
+
+        <div style="text-align:center; margin-top:20px; font-size:0.6rem; color:#475569; font-weight:800; letter-spacing:1px; text-transform:uppercase;">
+            <i class="fa-solid fa-lock"></i> SSL Secured Gateway
+        </div>
+    </div>
+
+    <div class="brand-footer">
+        <div class="gc-logo">
+            <div class="gc-icon">G</div>
+            <div class="gc-text">Gaming Collective</div>
+        </div>
+    </div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+
+        window.onload = function() { _supa = getClient(); };
+
+        function setAmt(val) {
+            document.getElementById('amount').value = val;
+        }
+
+        function triggerPayment() {
+            const btn = document.getElementById('instant-pay-btn');
+            btn.classList.add('bouncy-anim');
+            setTimeout(() => btn.classList.remove('bouncy-anim'), 400);
+            payWithFlutterwave();
+        }
+
+        function payWithFlutterwave() {
+            const amt = document.getElementById('amount').value;
+            if(!amt || amt < 100) return notify("Min refill is ₦100", "error");
+
+            FlutterwaveCheckout({
+                public_key: "FLWPUBK-4b9baac52d43aa02765923e58050f152-X",
+                tx_ref: "FT-" + Date.now(),
+                amount: amt,
+                currency: "NGN",
+                customer: { email: userEmail },
+                customizations: {
+                    title: "Gaming Collective",
+                    description: "Wallet Refill",
+                    logo: "https://img.icons8.com/fluency/96/lightning-bolt.png",
+                },
+                callback: function (data) {
+                    notify("Success! Syncing wallet...", "success");
+                    setTimeout(() => { location.href = 'home.html'; }, 3000);
+                },
+                onclose: function() { notify("Cancelled", "error"); }
+            });
+        }
+
+        function notify(msg, type) {
+            const box = document.getElementById('notification-box');
+            box.className = 'show ' + (type === 'success' ? 'nt-success' : 'nt-error');
+            document.getElementById('nt-icon-box').innerHTML = type === 'success' ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-xmark"></i>';
+            document.getElementById('nt-text').innerText = msg;
+            setTimeout(() => box.classList.remove('show'), 4000);
+        }
+    </script>
+</body>
+</html>
