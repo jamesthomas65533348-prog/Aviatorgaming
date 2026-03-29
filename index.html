@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Register - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --bg-dark: #02050a; 
+            --bg-accent: #0a192f;
+            --card-bg: rgba(13, 25, 48, 0.95);
+            --input-bg: rgba(0, 0, 0, 0.3);
+            --success: #00ff88;
+            --error: #ff3366;
+        }
+
+        /* --- ANTI-COPY & LAG FIX --- */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+        input { user-select: auto !important; -webkit-user-select: auto !important; }
+
+        body { 
+            background: var(--bg-dark);
+            color: white; font-family: 'Segoe UI', Roboto, sans-serif; 
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; margin: 0; overflow: hidden;
+        }
+
+        /* --- LIGHTWEIGHT ANIMATED BACKGROUND --- */
+        .bg-glow {
+            position: fixed; width: 300px; height: 300px;
+            background: var(--primary); filter: blur(120px);
+            border-radius: 50%; opacity: 0.15; z-index: -1;
+            animation: moveGlow 10s infinite alternate;
+        }
+        @keyframes moveGlow {
+            from { top: -10%; left: -10%; }
+            to { bottom: -10%; right: -10%; }
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            padding: 35px 25px; border-radius: 30px; 
+            width: 90%; max-width: 380px; 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            text-align: center; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 { 
+            font-size: 1.6rem; font-weight: 900; margin-bottom: 25px; 
+            letter-spacing: 2px; color: #fff;
+            text-shadow: 0 0 15px rgba(0, 123, 255, 0.5);
+        }
+
+        .input-group { position: relative; margin-bottom: 15px; }
+        .input-group i { 
+            position: absolute; left: 15px; top: 50%; 
+            transform: translateY(-50%); color: var(--primary); font-size: 0.9rem;
+        }
+
+        input { 
+            width: 100%; padding: 16px 16px 16px 45px; 
+            border-radius: 15px; border: 1px solid rgba(255, 255, 255, 0.1); 
+            background: var(--input-bg); color: white; 
+            font-size: 0.95rem; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--primary); background: rgba(0,0,0,0.5); }
+
+        /* --- BOUNCY BUTTON --- */
+        .main-btn { 
+            width: 100%; padding: 18px; 
+            background: linear-gradient(135deg, var(--primary), #0056b3); 
+            color: white; border: none; border-radius: 15px; 
+            font-weight: 900; text-transform: uppercase;
+            cursor: pointer; transition: 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin-top: 10px; box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
+        }
+        .main-btn:active { transform: scale(0.92); }
+        .main-btn:disabled { opacity: 0.6; transform: none; }
+
+        /* --- STYLISH TOAST --- */
+        #toast { 
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%); 
+            padding: 15px 25px; border-radius: 20px; z-index: 9999; 
+            font-weight: 800; font-size: 0.85rem; color: white;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.4);
+            transition: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            display: flex; align-items: center; gap: 10px;
+        }
+        #toast.show { top: 30px; }
+
+        .footer-link { 
+            margin-top: 25px; font-size: 0.8rem; color: #64748b; 
+            cursor: pointer; font-weight: 600;
+        }
+        .footer-link span { color: var(--primary); }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div class="bg-glow"></div>
+    <div id="toast"></div>
+
+    <div class="card">
+        <h2>GENIUS SIGNUP</h2>
+        
+        <div class="input-group">
+            <i class="fa-solid fa-envelope"></i>
+            <input type="email" id="email" placeholder="Email Address">
+        </div>
+        
+        <div class="input-group">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="pass" placeholder="Password">
+        </div>
+        
+        <div class="input-group">
+            <i class="fa-solid fa-shield-check"></i>
+            <input type="password" id="confirm_pass" placeholder="Confirm Password">
+        </div>
+        
+        <div class="input-group">
+            <i class="fa-solid fa-id-card"></i>
+            <input type="number" id="nin" placeholder="NIN (11 Digits)">
+        </div>
+
+        <button id="signup-btn" class="main-btn" onclick="doSignUp()">
+            Create Account
+        </button>
+        
+        <p class="footer-link" onclick="location.href='login.html'">
+            Already have an account? <span>Login</span>
+        </p>
+    </div>
+
+    <script>
+        (function(){ emailjs.init("GeCipLr0kFPCN8feN"); })();
+
+        function showToast(msg, isSuccess) {
+            const t = document.getElementById('toast');
+            t.innerHTML = isSuccess ? `<i class="fa-solid fa-circle-check"></i> ${msg}` : `<i class="fa-solid fa-circle-exclamation"></i> ${msg}`;
+            t.style.background = isSuccess ? "var(--success)" : "var(--error)";
+            t.classList.add("show");
+            setTimeout(() => t.classList.remove("show"), 3000);
+        }
+
+        async function doSignUp() {
+            var email = document.getElementById('email').value.trim();
+            var pass = document.getElementById('pass').value;
+            var confirmPass = document.getElementById('confirm_pass').value;
+            var nin = document.getElementById('nin').value;
+            var btn = document.getElementById('signup-btn');
+            
+            var _supa = getClient();
+
+            if (!email || !pass || !nin) return showToast("Please fill all fields!", false);
+            if (pass !== confirmPass) return showToast("Passwords do not match!", false);
+            if (nin.length !== 11) return showToast("NIN must be 11 digits!", false);
+
+            btn.disabled = true;
+            btn.innerText = "AUTHENTICATING...";
+
+            try {
+                const { data: existingUser } = await _supa
+                    .from('profiles')
+                    .select('email, otp_status')
+                    .eq('email', email)
+                    .maybeSingle();
+
+                if (existingUser && existingUser.otp_status === 'VERIFIED') {
+                    showToast("Email already exists!", false);
+                    btn.disabled = false;
+                    btn.innerText = "Create Account";
+                    return;
+                }
+
+                const generatedOTP = Math.floor(100000 + Math.random() * 900000);
+
+                await emailjs.send('service_huev2pt', 'template_r50pcwk', {
+                    email: email, 
+                    passcode: generatedOTP 
+                });
+
+                const { error: dbError } = await _supa.from('profiles').upsert([
+                    { 
+                        email: email, 
+                        password: pass, 
+                        nin: nin, 
+                        profile_code: Math.random().toString(36).substring(2, 12).toUpperCase(),
+                        balance: 0,
+                        otp_status: 'PENDING'
+                    }
+                ], { onConflict: 'email' });
+
+                if (dbError) throw dbError;
+
+                localStorage.setItem('pending_otp', generatedOTP);
+                localStorage.setItem('user_email', email);
+
+                showToast("OTP Sent Successfully!", true);
+                setTimeout(() => { location.href='otp.html'; }, 2000);
+
+            } catch (err) {
+                showToast("System busy. Try again.", false);
+                btn.disabled = false;
+                btn.innerText = "Create Account";
+            }
+        }
+    </script>
+</body>
+</html>
