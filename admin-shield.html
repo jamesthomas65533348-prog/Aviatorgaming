@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Shield Command - Admin Control</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #3b82f6; 
+            --bg: #020617; 
+            --card: rgba(15, 23, 42, 0.6); 
+            --success: #10b981; 
+            --error: #ef4444; 
+            --warning: #f59e0b; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --accent: #00f2ff;
+        }
+
+        /* --- PREVENT COPY & HIGHLIGHT --- */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body { 
+            background: radial-gradient(circle at top right, #0f172a 0%, #020617 100%);
+            color: white; font-family: 'Inter', system-ui, sans-serif; 
+            padding: 0; margin: 0; min-height: 100vh; overflow-x: hidden;
+        }
+
+        /* --- BOUNCY ANIMATION --- */
+        .bouncy { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; }
+        .bouncy:active { transform: scale(0.9); }
+
+        /* --- TOP HUD --- */
+        .admin-header {
+            background: rgba(2, 6, 23, 0.8); backdrop-filter: blur(25px);
+            padding: 20px; position: sticky; top: 0; z-index: 1000;
+            border-bottom: 1px solid rgba(0, 242, 255, 0.2);
+            display: flex; flex-direction: column; gap: 15px;
+        }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .shield-logo { 
+            font-weight: 900; letter-spacing: 3px; font-size: 0.9rem; 
+            display: flex; align-items: center; gap: 12px;
+            color: var(--accent); text-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+        }
+        
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .stat-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01)); 
+            padding: 12px; border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 4px;
+        }
+        .stat-label { font-size: 0.6rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 900; color: #fff; }
+        .stat-value.blue { color: var(--primary); }
+
+        .live-indicator { width: 10px; height: 10px; background: var(--success); border-radius: 50%; box-shadow: 0 0 10px var(--success); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(1.3); } 100% { opacity: 1; transform: scale(1); } }
+
+        /* --- CONTENT AREA --- */
+        .content-area { padding: 30px 20px; text-align: center; }
+        .online-status {
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 24px; padding: 40px 20px; margin-top: 20px;
+        }
+        .online-status i { font-size: 3rem; color: var(--success); margin-bottom: 15px; }
+        .online-status h2 { margin: 0; font-size: 1rem; letter-spacing: 1px; color: var(--success); }
+        .online-status p { font-size: 0.8rem; color: #94a3b8; margin-top: 10px; line-height: 1.5; }
+
+        /* --- BROADCAST MODAL --- */
+        #broadcast-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            display: none; align-items: center; justify-content: center; z-index: 11000; padding: 20px;
+            backdrop-filter: blur(15px);
+        }
+        .broadcast-box { 
+            background: #0f172a; border: 1px solid rgba(59, 130, 246, 0.3); 
+            padding: 30px; border-radius: 32px; width: 100%; max-width: 450px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: modalBounce 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes modalBounce { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .broadcast-textarea { 
+            width: 100%; height: 140px; background: rgba(0,0,0,0.4); color: white; 
+            border: 1px solid #1e293b; border-radius: 18px; padding: 18px; 
+            box-sizing: border-box; resize: none; margin-top: 20px; font-size: 0.95rem;
+            outline: none; transition: 0.3s;
+        }
+        .broadcast-textarea:focus { border-color: var(--primary); background: rgba(0,0,0,0.6); }
+
+        .btn-row { display: flex; gap: 12px; margin-top: 20px; }
+        .btn { 
+            flex: 1; border: none; padding: 16px; border-radius: 16px; 
+            font-weight: 800; font-size: 0.8rem; cursor: pointer; 
+            color: white; text-transform: uppercase;
+        }
+        .btn-success { background: linear-gradient(135deg, var(--success), #065f46); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), #1e40af); box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3); }
+
+        /* --- FLOATING COMMAND --- */
+        .fab-notif {
+            position: fixed; bottom: 40px; right: 30px; width: 65px; height: 65px;
+            background: var(--primary); color: white; border: none; border-radius: 22px;
+            font-size: 1.6rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 15px 30px rgba(59, 130, 246, 0.4); z-index: 1000;
+        }
+
+        #toast-wrap { position: fixed; top: 30px; left: 20px; right: 20px; z-index: 12000; pointer-events: none; }
+        .toast { 
+            background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(255,255,255,0.1); 
+            padding: 16px 20px; border-radius: 20px; margin-bottom: 12px; 
+            transform: translateY(-120%); transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            display: flex; align-items: center; gap: 12px; backdrop-filter: blur(10px);
+            font-size: 0.85rem; font-weight: 600;
+        }
+        .toast.show { transform: translateY(0); }
+        .toast.error { border-left: 5px solid var(--error); }
+    </style>
+</head>
+<body>
+
+    <div id="toast-wrap"></div>
+
+    <div id="broadcast-modal">
+        <div class="broadcast-box">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <i class="fa-solid fa-tower-broadcast" style="color:var(--primary); font-size:1.5rem;"></i>
+                <h3 style="margin:0; letter-spacing:1px;">SIGNAL DEPLOYMENT</h3>
+            </div>
+            
+            <textarea id="broadcast-msg" class="broadcast-textarea" placeholder="Broadcast message to all pilots..."></textarea>
+            
+            <div style="margin-top:20px;">
+                <label class="bouncy" style="width:100%; background:var(--glass); border:1px solid #1e293b; padding:15px; border-radius:16px; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:12px; transition:0.3s; box-sizing:border-box;">
+                    <i class="fa-solid fa-image" style="color:var(--accent);"></i>
+                    <span id="file-status" style="font-size:0.75rem; font-weight:800; color:#94a3b8; text-transform:uppercase;">Attach Media</span>
+                    <input type="file" id="broadcast-file" hidden accept="image/*" onchange="updateFileLabel(this)">
+                </label>
+            </div>
+
+            <div class="btn-row">
+                <button onclick="sendBroadcast()" id="send-btn" class="btn btn-primary bouncy">Transmit</button>
+                <button onclick="closeBroadcastModal()" class="btn bouncy" style="background: rgba(255,255,255,0.05); color: #94a3b8;">Abort</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-header">
+        <div class="header-top">
+            <div class="shield-logo">
+                <i class="fa-solid fa-satellite-dish"></i> 
+                COMMAND SHIELD
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 0.65rem; font-weight: 800; color: var(--success); letter-spacing: 1px;">SYSTEM OPERATIONAL</span>
+                <div class="live-indicator"></div>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card bouncy">
+                <span class="stat-label">Active Users</span>
+                <span class="stat-value" id="approved-count">0</span>
+            </div>
+            <div class="stat-card bouncy">
+                <span class="stat-label">System State</span>
+                <span class="stat-value" style="color:var(--success)">ONLINE</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-area">
+        <div class="online-status bouncy">
+            <i class="fa-solid fa-shield-halved"></i>
+            <h2>COMMAND ACTIVE</h2>
+            <p>The system is live and secure. All bonus claiming logic has been archived to optimize performance. <br> Use the broadcast tool for communications.</p>
+        </div>
+    </div>
+
+    <button class="fab-notif bouncy" onclick="openBroadcastModal()">
+        <i class="fa-solid fa-bolt"></i>
+    </button>
+
+    <script>
+        var _supa;
+
+        window.onload = function() {
+            if (!isAdmin()) { location.href = 'home.html'; return; }
+            _supa = getClient();
+            updateStats();
+            setInterval(updateStats, 10000);
+        };
+
+        async function updateStats() {
+            try {
+                const { count } = await _supa.from('profiles').select('*', { count: 'exact', head: true });
+                document.getElementById('approved-count').innerText = count || 0;
+            } catch (e) { console.error(e); }
+        }
+
+        function updateFileLabel(input) {
+            const label = document.getElementById('file-status');
+            if (input.files && input.files[0]) {
+                label.innerText = "MEDIA ATTACHED";
+                label.parentElement.style.borderColor = "var(--success)";
+                label.style.color = "var(--success)";
+            }
+        }
+
+        async function sendBroadcast() {
+            const msgInput = document.getElementById('broadcast-msg');
+            const msg = msgInput.value.trim();
+            const fileInput = document.getElementById('broadcast-file');
+            const btn = document.getElementById('send-btn');
+            
+            if(!msg) {
+                showToast("INPUT REQUIRED", "Deployment requires a signal message", true);
+                return;
+            }
+
+            btn.disabled = true; btn.innerText = "TRANSMITTING...";
+            let imageUrl = null;
+
+            try {
+                if (fileInput.files && fileInput.files[0]) {
+                    const file = fileInput.files[0];
+                    const fileName = `${Date.now()}_admin_alert.png`;
+                    await _supa.storage.from('notifications').upload(fileName, file);
+                    const { data: publicData } = _supa.storage.from('notifications').getPublicUrl(fileName);
+                    imageUrl = publicData.publicUrl;
+                }
+
+                await _supa.from('notifications').insert([{ message: msg, image_url: imageUrl }]);
+                showToast("SUCCESS", "Signal broadcasted to all units");
+                closeBroadcastModal();
+                msgInput.value = "";
+            } catch (err) { 
+                showToast("FAILED", "Encryption error or network timeout", true); 
+            } finally { 
+                btn.disabled = false; btn.innerText = "Transmit"; 
+            }
+        }
+
+        function showToast(t, m, isError = false) {
+            const wrap = document.getElementById('toast-wrap');
+            const toast = document.createElement('div');
+            toast.className = `toast show ${isError ? 'error' : ''}`;
+            toast.innerHTML = `<div><div style="font-size:0.6rem; opacity:0.6;">SYSTEM</div><div style="color:${isError?'var(--error)':'var(--accent)'}">${t}</div></div><div style="opacity:0.8; font-weight:400; border-left:1px solid rgba(255,255,255,0.1); padding-left:12px;">${m}</div>`;
+            wrap.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 500);
+            }, 4000);
+        }
+
+        function openBroadcastModal() { document.getElementById('broadcast-modal').style.display = 'flex'; }
+        function closeBroadcastModal() { document.getElementById('broadcast-modal').style.display = 'none'; }
+    </script>
+</body>
+</html>
