@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pilot Profile - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --neon-blue: #00f2ff;
+            --bg-dark: #010409; 
+            --bg-accent: #050a15;
+            --card-bg: rgba(13, 25, 48, 0.95);
+            --success: #2ecc71; 
+            --gold: #fbbf24;
+            --glass: rgba(255, 255, 255, 0.03);
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+
+        .selectable {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+        }
+
+        body { 
+            background: radial-gradient(circle at top, var(--bg-accent) 0%, var(--bg-dark) 100%);
+            color: white; font-family: 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; padding: 0; min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .bouncy { transition: 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; }
+        .bouncy:active { transform: scale(0.92); filter: brightness(1.2); }
+
+        body::before {
+            content: ""; position: fixed; inset: 0;
+            background-image: linear-gradient(rgba(0, 123, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 123, 255, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px; opacity: 0.2; z-index: -1;
+        }
+
+        .profile-header {
+            padding: 15px 20px; display: flex; align-items: center; justify-content: space-between;
+            background: rgba(1, 4, 9, 0.8); backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .back-btn {
+            width: 44px; height: 44px; display: flex; justify-content: center;
+            align-items: center; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+            background: var(--glass);
+        }
+
+        .pilot-identity {
+            text-align: center; padding: 30px 20px;
+            background: linear-gradient(180deg, rgba(0, 123, 255, 0.05) 0%, transparent 100%);
+        }
+
+        .avatar-container {
+            position: relative; width: 130px; height: 130px; margin: 0 auto 20px;
+        }
+        
+        .avatar-ring {
+            position: absolute; inset: -3px;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(0, 123, 255, 0.4);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .avatar-img {
+            width: 100%; height: 100%; border-radius: 50%;
+            object-fit: cover; border: 4px solid var(--bg-dark);
+            background: var(--bg-accent); position: relative; z-index: 2;
+        }
+
+        .edit-pfp-btn {
+            position: absolute; bottom: 5px; right: 5px;
+            background: var(--primary); color: white; width: 36px; height: 36px;
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            border: 3px solid var(--bg-dark); z-index: 3; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .rank-badge {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid var(--gold);
+            color: var(--gold); padding: 5px 15px; border-radius: 50px;
+            font-size: 0.65rem; font-weight: 900; letter-spacing: 1.5px;
+            display: inline-block; margin-top: 12px; text-transform: uppercase;
+        }
+
+        .stats-row {
+            display: flex; gap: 12px; padding: 0 20px; margin-bottom: 25px;
+        }
+        .stat-card {
+            flex: 1; background: var(--glass); padding: 15px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(10px);
+        }
+        .stat-label { font-size: 0.55rem; color: var(--primary); font-weight: 900; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+        .stat-val { font-size: 0.9rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+
+        .settings-group { padding: 0 20px 100px; }
+        .glass-panel {
+            background: var(--card-bg); border-radius: 28px;
+            border: 1px solid rgba(255,255,255,0.08); overflow: hidden;
+        }
+
+        .list-item {
+            padding: 18px 22px; border-bottom: 1px solid rgba(255,255,255,0.03);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .list-item:last-child { border-bottom: none; }
+        
+        .item-info { display: flex; flex-direction: column; gap: 4px; }
+        .item-title { font-size: 0.65rem; color: #64748b; font-weight: 800; text-transform: uppercase; }
+        .item-data { font-size: 0.9rem; font-weight: 600; color: #fff; }
+
+        .access-box {
+            background: rgba(0,0,0,0.3); padding: 12px 18px; border-radius: 16px;
+            margin: 0 20px 20px; border: 1px dashed rgba(0, 123, 255, 0.4);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .code-text { font-family: 'Courier New', monospace; color: var(--neon-blue); font-weight: 900; font-size: 1.1rem; }
+
+        #toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            padding: 12px 20px; border-radius: 50px; font-weight: 800; font-size: 0.8rem;
+            z-index: 10000; display: none; backdrop-filter: blur(15px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1);
+            animation: toastIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+        @keyframes toastIn { from { top: -60px; opacity: 0; } to { top: 20px; opacity: 1; } }
+
+    </style>
+</head>
+<body>
+    <div id="toast"></div>
+
+    <div class="profile-header">
+        <div class="back-btn bouncy" onclick="location.href='home.html'">
+            <i class="fa-solid fa-arrow-left"></i>
+        </div>
+        <div style="font-weight: 900; font-size: 0.75rem; letter-spacing: 2px; color: var(--primary);">PILOT PROFILE</div>
+        <div style="width: 44px;"></div>
+    </div>
+
+    <div class="pilot-identity">
+        <div class="avatar-container">
+            <div class="avatar-ring"></div>
+            <img id="pfp" src="https://ui-avatars.com/api/?name=User&background=007bff&color=fff" class="avatar-img">
+            <label for="file-input" class="edit-pfp-btn bouncy">
+                <i class="fa-solid fa-pen" style="font-size: 0.8rem;"></i>
+            </label>
+            <input type="file" id="file-input" style="display:none" accept="image/*" onchange="uploadPfp()">
+        </div>
+        <h2 id="display-name" style="margin: 0; font-size: 1.5rem; font-weight: 900;">---</h2>
+        <div class="rank-badge" id="rank-name">Aviator Rookie</div>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-label">System Status</div>
+            <div class="stat-val" style="color: var(--success);">
+                <i class="fa-solid fa-shield-check"></i> ONLINE
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Security Clearance</div>
+            <div class="stat-val" id="acc-type" style="color: var(--gold);">Level 1</div>
+        </div>
+    </div>
+
+    <div class="access-box">
+        <div class="item-info">
+            <div class="item-title">Unique Access Code</div>
+            <div class="code-text" id="p-code">---</div>
+        </div>
+        <div class="back-btn bouncy" onclick="copyCode()" style="background: var(--primary); border: none; color: white;">
+            <i class="fa-solid fa-copy"></i>
+        </div>
+    </div>
+
+    <div class="settings-group">
+        <div class="glass-panel">
+            <div class="list-item">
+                <div class="item-info">
+                    <div class="item-title">Primary Email</div>
+                    <div class="item-data" id="val-email">---</div>
+                </div>
+                <i class="fa-solid fa-envelope" style="opacity: 0.2;"></i>
+            </div>
+
+            <div class="list-item">
+                <div class="item-info">
+                    <div class="item-title">NIN Verification</div>
+                    <div class="item-data" id="val-nin">**********</div>
+                </div>
+                <i class="fa-solid fa-id-card" style="opacity: 0.2;"></i>
+            </div>
+
+            <div class="list-item bouncy" onclick="showToast('Encryption Active', true)">
+                <div class="item-info">
+                    <div class="item-title">Data Protection</div>
+                    <div class="item-data">End-to-End SSL</div>
+                </div>
+                <i class="fa-solid fa-lock" style="color: var(--success); font-size: 0.8rem;"></i>
+            </div>
+        </div>
+        
+        <p style="text-align: center; color: #475569; font-size: 0.65rem; margin-top: 30px; font-weight: 600; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-satellite-dish"></i> ENCRYPTED TERMINAL ID: <span id="terminal-id">...</span>
+        </p>
+    </div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+
+        window.onload = function() {
+            if(!userEmail) { location.href='login.html'; return; }
+            _supa = getClient();
+            loadProfile();
+            document.getElementById('terminal-id').innerText = Math.random().toString(36).substring(2, 10).toUpperCase();
+        };
+
+        async function loadProfile() {
+            var { data, error } = await _supa.from('profiles').select('*').eq('email', userEmail).single();
+            if(data) {
+                // NAME LOGIC: Priority to full_name, fallback to email prefix
+                if (data.full_name && data.full_name.trim() !== "") {
+                    document.getElementById('display-name').innerText = data.full_name;
+                } else {
+                    const namePart = data.email.split('@')[0];
+                    document.getElementById('display-name').innerText = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+                }
+                
+                document.getElementById('val-email').innerText = data.email;
+                document.getElementById('p-code').innerText = data.profile_code || "GEN-X-000";
+                
+                if(data.nin) {
+                    document.getElementById('val-nin').innerText = "Verified •••• " + data.nin.toString().slice(-4);
+                }
+
+                if(data.avatar_url) {
+                    document.getElementById('pfp').src = data.avatar_url;
+                }
+
+                if(data.role === 'ADMIN') {
+                    document.getElementById('rank-name').innerText = "ELITE COMMANDER";
+                    document.getElementById('rank-name').style.background = "linear-gradient(90deg, #ff4d4d, #9333ea)";
+                    document.getElementById('rank-name').style.color = "white";
+                    document.getElementById('acc-type').innerText = "System Admin";
+                    document.getElementById('acc-type').style.color = "#ff4d4d";
+                }
+            }
+        }
+
+        async function uploadPfp() {
+            var file = document.getElementById('file-input').files[0];
+            if(!file) return;
+
+            showToast("Uploading to Cloud...", true);
+            var fileName = "pfp_" + Date.now() + "_" + userEmail.replace(/[^a-zA-Z0-9]/g, '');
+            
+            var { data, error } = await _supa.storage.from('avatars').upload(fileName, file);
+            if(error) return showToast("Error: " + error.message, false);
+
+            var publicURL = _supa.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
+            await _supa.from('profiles').update({ avatar_url: publicURL }).eq('email', userEmail);
+            
+            document.getElementById('pfp').src = publicURL;
+            showToast("Identity Updated!", true);
+        }
+
+        function copyCode() {
+            var code = document.getElementById('p-code').innerText;
+            navigator.clipboard.writeText(code);
+            showToast("Copied to Clipboard", true);
+        }
+
+        function showToast(m, s) {
+            var t = document.getElementById('toast');
+            t.innerText = m; 
+            t.style.background = s ? "rgba(0, 123, 255, 0.8)" : "rgba(231, 76, 60, 0.8)";
+            t.style.display = "block";
+            setTimeout(() => t.style.display="none", 2500);
+        }
+    </script>
+</body>
+</html>

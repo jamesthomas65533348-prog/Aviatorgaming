@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aviator Genius - Home</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --neon-blue: #00f2ff;
+            --bg-dark: #010409; 
+            --bg-accent: #050a15;
+            --card-bg: rgba(13, 25, 48, 0.98);
+            --success: #2ecc71; 
+            --error: #ff4d4d;
+            --gold: #fbbf24;
+            --glass: rgba(255, 255, 255, 0.05);
+            --lunex: #7000ff;
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+
+        body { 
+            background: linear-gradient(180deg, var(--bg-accent) 0%, var(--bg-dark) 100%);
+            color: white; font-family: 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; padding: 0; overflow: hidden; height: 100vh;
+        }
+
+        /* --- ANIMATIONS --- */
+        .bouncy { transition: 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; }
+        .bouncy:active { transform: scale(0.9) !important; filter: brightness(1.2); }
+
+        @keyframes popIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes popOut {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.5); opacity: 0; }
+        }
+
+        .notif-bounce-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .notif-bounce-out { animation: popOut 0.3s ease-in forwards; }
+
+        body::before {
+            content: ""; position: absolute; width: 200%; height: 200%; top: -50%; left: -50%;
+            background-image: linear-gradient(rgba(0, 123, 255, 0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 123, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px; transform: rotateX(70deg); z-index: -1;
+            animation: gridMove 15s linear infinite;
+        }
+        @keyframes gridMove { 0% { transform: rotateX(70deg) translateY(0); } 100% { transform: rotateX(70deg) translateY(50px); } }
+
+        /* --- HEADER --- */
+        .header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 100; gap: 10px; }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+
+        .notif-trigger {
+            width: 44px; height: 44px; border-radius: 50%; background: var(--glass);
+            display: flex; justify-content: center; align-items: center; position: relative;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .notif-dot {
+            position: absolute; top: 12px; right: 12px; width: 9px; height: 9px;
+            background: var(--error); border-radius: 50%; display: none;
+            box-shadow: 0 0 10px var(--error); border: 2px solid var(--bg-dark);
+        }
+
+        .user-capsule {
+            display: flex; align-items: center; gap: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 5px 15px 5px 5px; border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+        }
+
+        .profile-img-wrap {
+            width: 40px; height: 40px; border-radius: 50%;
+            position: relative; border: 2px solid var(--primary);
+            background: var(--bg-dark); flex-shrink: 0;
+        }
+        .profile-img-wrap img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        
+        .led-status {
+            position: absolute; bottom: 1px; right: 1px;
+            width: 9px; height: 9px; background: var(--success);
+            border-radius: 50%; border: 2px solid var(--bg-dark);
+            box-shadow: 0 0 10px var(--success);
+            transition: 0.5s;
+        }
+        .led-active { background: var(--success); box-shadow: 0 0 10px var(--success); }
+        .led-error { background: var(--error); box-shadow: 0 0 10px var(--error); }
+
+        .user-info { display: flex; flex-direction: column; }
+        .user-bal { font-size: 0.9rem; font-weight: 900; color: #fff; }
+        .user-label { font-size: 0.5rem; color: var(--primary); font-weight: 900; text-transform: uppercase; }
+
+        #admin-gate {
+            background: rgba(251, 191, 36, 0.1); border: 1px solid var(--gold);
+            color: var(--gold); padding: 8px 15px; border-radius: 50px;
+            font-size: 0.65rem; font-weight: 900; display: none;
+        }
+
+        .wallet-trigger {
+            width: 45px; height: 45px; border-radius: 14px;
+            background: linear-gradient(135deg, var(--primary), #0056b3);
+            display: flex; justify-content: center; align-items: center;
+        }
+        
+        .dropdown-menu {
+            position: absolute; top: 60px; right: 0; width: 220px;
+            background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px; overflow: hidden; opacity: 0; visibility: hidden;
+            transform: translateY(-20px); transition: 0.3s;
+            backdrop-filter: blur(25px); z-index: 1000;
+        }
+        .dropdown-menu.show { opacity: 1; visibility: visible; transform: translateY(0); }
+        .menu-item { padding: 15px 20px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid rgba(255,255,255,0.03); font-weight: 600; font-size: 0.85rem; }
+
+        /* --- NOTIFICATION PANEL --- */
+        #notif-panel {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            display: none; justify-content: center; align-items: center; z-index: 2000; padding: 20px;
+            backdrop-filter: blur(8px);
+        }
+        .notif-card { 
+            background: var(--card-bg); width: 100%; max-width: 400px; 
+            border-radius: 32px; padding: 25px; border: 1px solid rgba(255,255,255,0.1); 
+            max-height: 80vh; overflow-y: auto; text-align: left;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .notif-item { 
+            background: rgba(255,255,255,0.03); padding: 18px; border-radius: 22px; 
+            margin-bottom: 15px; position: relative; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08);
+            transition: transform 0.3s;
+        }
+        .notif-img-preview {
+            width: 100%; height: 160px; object-fit: cover;
+            border-radius: 14px; margin-top: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .notif-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .notif-time { font-size: 0.6rem; opacity: 0.4; font-weight: 600; }
+
+        /* --- CORE --- */
+        .aviator-core {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 150px; height: 150px; border-radius: 50%;
+            background: radial-gradient(circle, #007bff 0%, #001133 100%);
+            display: flex; justify-content: center; align-items: center;
+            border: 4px solid rgba(0, 123, 255, 0.2);
+            box-shadow: 0 0 50px rgba(0, 123, 255, 0.3);
+        }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); display: none; justify-content: center; align-items: center; z-index: 5000; }
+        .modal-card { background: var(--card-bg); padding: 30px; border-radius: 32px; border: 1px solid rgba(255,255,255,0.1); width: 85%; max-width: 300px; text-align: center; }
+
+        /* --- FLOATING BUTTONS --- */
+        .bonus-btn { 
+            position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%); 
+            width: 60px; height: 60px; 
+            background: rgba(0, 242, 255, 0.1); 
+            border: 1px solid var(--neon-blue); 
+            border-radius: 18px; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; color: var(--neon-blue); 
+            font-weight: 900; box-shadow: 0 0 20px rgba(0, 242, 255, 0.2); 
+            backdrop-filter: blur(10px);
+        }
+        
+        .logout-btn { position: fixed; bottom: 85px; right: 25px; width: 60px; height: 60px; background: rgba(255,77,77,0.1); border: 1px solid var(--error); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: var(--error); }
+
+        /* --- AI FLOATING BUTTON (NEW) --- */
+        .ai-btn { 
+            position: fixed; bottom: 85px; left: 25px; 
+            width: 60px; height: 60px; 
+            background: rgba(112, 0, 255, 0.1); 
+            border: 1px solid var(--lunex); 
+            border-radius: 18px; 
+            display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; 
+            color: white; 
+            box-shadow: 0 0 15px rgba(112, 0, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+        .lunex-mini-logo { width: 30px; height: 30px; }
+        .lunex-mini-logo svg { filter: drop-shadow(0 0 5px var(--lunex)); }
+
+        .ticker-container { position: fixed; bottom: 0; width: 100%; background: rgba(0,0,0,0.9); height: 45px; display: flex; align-items: center; overflow: hidden; border-top: 1px solid rgba(255,255,255,0.05); }
+        .ticker-move { display: flex; white-space: nowrap; animation: ticker 40s linear infinite; }
+        @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-left">
+            <div class="user-capsule bouncy" onclick="location.href='profile.html'">
+                <div class="profile-img-wrap">
+                    <img id="user-avatar" src="https://ui-avatars.com/api/?name=U&background=007bff&color=fff">
+                    <div id="led-light" class="led-status"></div>
+                </div>
+                <div class="user-info">
+                    <span class="user-label">Balance</span>
+                    <span class="user-bal">₦<span id="balance">0.00</span></span>
+                </div>
+            </div>
+            <div class="notif-trigger bouncy" onclick="openNotif()">
+                <i class="fa-solid fa-bell"></i>
+                <div id="notif-dot" class="notif-dot"></div>
+            </div>
+        </div>
+
+        <div id="admin-gate" class="bouncy" onclick="handleAdminEntry()">
+            <i class="fa-solid fa-shield-halved"></i> ADMIN
+        </div>
+
+        <div class="wallet-container" style="position:relative">
+            <div class="wallet-trigger bouncy" onclick="toggleWallet()">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <div class="dropdown-menu" id="walletMenu">
+                <div class="menu-item bouncy" onclick="location.href='deposit.html'"><i class="fa-solid fa-plus-circle" style="color:var(--success)"></i> Deposit</div>
+                <div class="menu-item bouncy" onclick="location.href='withdraw.html'"><i class="fa-solid fa-minus-circle" style="color:var(--error)"></i> Withdraw</div>
+                <div class="menu-item bouncy" onclick="location.href='bonus.html'"><i class="fa-solid fa-satellite-dish" style="color:var(--neon-blue)"></i> Signal Wave</div>
+                <div class="menu-item bouncy" onclick="location.href='history.html'"><i class="fa-solid fa-clock-rotate-left"></i> History</div>
+                <div class="menu-item bouncy" onclick="location.href='support.html'"><i class="fa-solid fa-headset" style="color:var(--gold)"></i> Support</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="aviator-core bouncy" onclick="location.href='game.html'">
+        <i class="fa-solid fa-plane" style="font-size: 3.5rem; color: white;"></i>
+    </div>
+
+    <div id="notif-panel">
+        <div class="notif-card" id="notifCard">
+            <h3 style="margin:0 0 20px; color: var(--primary); display:flex; justify-content:space-between; align-items:center;">
+                Notifications 
+                <i class="fa-solid fa-circle-check" style="font-size:1rem; opacity:0.3"></i>
+            </h3>
+            <div id="notif-list"></div>
+            <button class="bouncy" style="width:100%; padding:15px; border-radius:18px; border:none; background:var(--primary); color:white; font-weight:800; margin-top:10px;" onclick="closeNotif()">Done</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmDeleteModal">
+        <div class="modal-card">
+            <i class="fa-solid fa-trash-can" style="font-size: 2.5rem; color: var(--error); margin-bottom:15px"></i>
+            <h3>Delete Alert?</h3>
+            <p style="opacity:0.6; font-size: 0.85rem">Remove this broadcast permanently?</p>
+            <button class="bouncy" style="width:100%; padding:14px; border-radius:12px; border:none; background:var(--error); color:white; font-weight:800" id="confirmDelBtn">Confirm Delete</button>
+            <button class="bouncy" style="width:100%; padding:14px; margin-top:10px; border-radius:12px; border:none; background:transparent; color:white" onclick="closeDelModal()">Cancel</button>
+        </div>
+    </div>
+
+    <div class="ai-btn bouncy" onclick="location.href='ai-chat.html'">
+        <div id="mini-lunex-logo" class="lunex-mini-logo"></div>
+        <span style="font-size: 0.55rem; font-weight: 900; margin-top: 3px; color: var(--lunex);">ASK AI</span>
+    </div>
+
+    <div class="bonus-btn bouncy" onclick="location.href='bonus.html'">
+        <i class="fa-solid fa-satellite-dish"></i>
+        <span style="font-size: 0.5rem; text-transform: uppercase;">Incoming</span>
+    </div>
+
+    <div class="logout-btn bouncy" onclick="showModal('logoutModal')">
+        <i class="fa-solid fa-power-off"></i>
+    </div>
+
+    <div class="modal-overlay" id="logoutModal" onclick="closeModal('logoutModal')">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <i class="fa-solid fa-right-from-bracket" style="font-size: 3rem; color: var(--error); margin-bottom: 15px;"></i>
+            <h3>Sign Out?</h3>
+            <p style="opacity: 0.6; font-size: 0.9rem;">Ending session. All progress is saved.</p>
+            <button class="m-btn bouncy" style="background: var(--error); color: white; width:100%; padding:15px; border-radius:12px; border:none; font-weight:800" onclick="confirmLogout()">Confirm Logout</button>
+            <button class="m-btn bouncy" style="background: rgba(255,255,255,0.05); color: white; width:100%; padding:15px; border-radius:12px; border:none; margin-top:10px" onclick="closeModal('logoutModal')">Cancel</button>
+        </div>
+    </div>
+
+    <div class="ticker-container"><div class="ticker-move" id="ticker-content"></div></div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+        var lastBalance = null;
+        let startX = 0;
+        let pendingDeleteId = null;
+
+        const lunexSVG = `<svg viewBox="0 0 100 100"><defs><linearGradient id="gl" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#7000ff"/><stop offset="100%" style="stop-color:#00ff88"/></linearGradient></defs><circle cx="50" cy="50" r="45" fill="none" stroke="url(#gl)" stroke-width="6" stroke-dasharray="8 4"/><path d="M35 35 L65 65 M65 35 L35 65" stroke="url(#gl)" stroke-width="12" stroke-linecap="round"/><circle cx="50" cy="50" r="12" fill="white"/></svg>`;
+        
+        window.onload = async function() {
+            document.getElementById('mini-lunex-logo').innerHTML = lunexSVG;
+            if(!userEmail) { location.href='login.html'; return; }
+            _supa = getClient();
+            await loadData();
+            checkNotifications();
+            setInterval(loadData, 4000);
+            setInterval(checkNotifications, 10000);
+            generateTicker();
+        };
+
+        async function loadData() {
+            const { data } = await _supa.from('profiles').select('*').eq('email', userEmail).single();
+            if(data) {
+                const balance = parseFloat(data.balance || 0);
+                document.getElementById('balance').innerText = balance.toLocaleString('en-US', {minimumFractionDigits: 2});
+                const led = document.getElementById('led-light');
+                if (lastBalance !== null && balance !== lastBalance) {
+                    led.className = balance > lastBalance ? 'led-status led-active' : 'led-status led-error';
+                    setTimeout(() => { led.className = 'led-status'; }, 3000);
+                }
+                lastBalance = balance;
+                if(data.avatar_url) document.getElementById('user-avatar').src = data.avatar_url;
+                if(data.role === 'ADMIN') document.getElementById('admin-gate').style.display = 'block';
+                localStorage.setItem('user_id', data.id);
+                localStorage.setItem('user_role', data.role);
+            }
+        }
+
+        async function checkNotifications() {
+            const userId = localStorage.getItem('user_id');
+            const { data: readData } = await _supa.from('notification_reads').select('notification_id').eq('user_id', userId);
+            const readIds = readData ? readData.map(r => r.notification_id) : [];
+            const { data: allNotifs } = await _supa.from('notifications').select('id');
+            const unread = (allNotifs || []).filter(n => !readIds.includes(n.id));
+            document.getElementById('notif-dot').style.display = (unread.length > 0) ? 'block' : 'none';
+        }
+
+        async function openNotif() {
+            const panel = document.getElementById('notif-panel');
+            const card = document.getElementById('notifCard');
+            const userId = localStorage.getItem('user_id');
+            
+            panel.style.display = 'flex';
+            card.classList.remove('notif-bounce-out');
+            card.classList.add('notif-bounce-in');
+
+            const { data: readData } = await _supa.from('notification_reads').select('notification_id').eq('user_id', userId);
+            const readIds = readData ? readData.map(r => r.notification_id) : [];
+            const { data: messages } = await _supa.from('notifications').select('*').order('created_at', { ascending: false });
+            const activeMessages = (messages || []).filter(m => !readIds.includes(m.id));
+            
+            const list = document.getElementById('notif-list');
+            if(activeMessages.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding:40px 20px;"><i class="fa-solid fa-envelope-open" style="font-size:2rem; opacity:0.1; margin-bottom:10px;"></i><p style="opacity:0.4;">All caught up!</p></div>`;
+                return;
+            }
+
+            list.innerHTML = activeMessages.map(n => {
+                const timeStr = new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                return `
+                <div class="notif-item bouncy" ontouchstart="hStart(event)" ontouchmove="hMove(event, this, '${n.id}')">
+                    <div class="notif-meta">
+                        <small style="color:var(--primary); font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">
+                            <i class="fa-solid fa-circle-dot" style="font-size:0.5rem; margin-right:5px;"></i>System
+                        </small>
+                        <span class="notif-time">${timeStr}</span>
+                    </div>
+                    <p style="margin:0; font-size:0.88rem; line-height:1.5; white-space: pre-wrap; color: rgba(255,255,255,0.9);">${n.message}</p>
+                    ${n.image_url ? `<img src="${n.image_url}" class="notif-img-preview">` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        function closeNotif() {
+            const panel = document.getElementById('notif-panel');
+            const card = document.getElementById('notifCard');
+            card.classList.remove('notif-bounce-in');
+            card.classList.add('notif-bounce-out');
+            setTimeout(() => { panel.style.display = 'none'; }, 300);
+        }
+
+        function hStart(e) { startX = e.touches[0].clientX; }
+        function hMove(e, el, id) {
+            let diff = e.touches[0].clientX - startX;
+            if(diff < 0) {
+                el.style.transform = `translateX(${diff}px)`;
+                if(diff < -120) {
+                    pendingDeleteId = id;
+                    document.getElementById('confirmDeleteModal').style.display = 'flex';
+                    el.style.transform = 'translateX(0)';
+                }
+            }
+        }
+
+        document.getElementById('confirmDelBtn').onclick = async () => {
+            const userId = localStorage.getItem('user_id');
+            const { error } = await _supa.from('notification_reads').insert([{ user_id: userId, notification_id: pendingDeleteId }]);
+            if(!error) { closeDelModal(); openNotif(); checkNotifications(); }
+        };
+
+        function closeDelModal() { document.getElementById('confirmDeleteModal').style.display = 'none'; pendingDeleteId = null; }
+        function handleAdminEntry() { if(localStorage.getItem('user_role')==='ADMIN') location.href='admin-shield.html'; }
+        function toggleWallet() { document.getElementById('walletMenu').classList.toggle('show'); }
+        function showModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function confirmLogout() { localStorage.clear(); location.href = 'login.html'; }
+
+        function generateTicker() {
+            const wrap = document.getElementById('ticker-content');
+            let h = '';
+            for(let i=0; i<15; i++) h += `<div style="padding:0 30px; font-size:0.75rem">💰 Player_${Math.floor(Math.random()*9999)} won <span style="color:var(--success)">₦${(Math.random()*20000).toLocaleString()}</span></div>`;
+            wrap.innerHTML = h + h;
+        }
+
+        window.onclick = e => { if (!e.target.closest('.wallet-container')) document.getElementById('walletMenu').classList.remove('show'); }
+    </script>
+</body>
+</html>
