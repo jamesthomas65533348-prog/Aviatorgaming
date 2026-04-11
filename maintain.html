@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Aviator Genius - Maintenance</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --neon-blue: #00f2ff;
+            --bg-dark: #010409; 
+            --bg-accent: #050a15;
+            --card-bg: rgba(13, 25, 48, 0.96);
+            --success: #2ecc71; 
+            --error: #ff4d4d;
+            --gold: #fbbf24;
+            --text-soft: rgba(255,255,255,0.72);
+            --text-fade: rgba(255,255,255,0.45);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            background: linear-gradient(180deg, var(--bg-accent) 0%, var(--bg-dark) 100%);
+            color: white; font-family: 'Segoe UI', Roboto, sans-serif;
+            padding: 20px 16px; min-height: 100vh; overflow-x: hidden;
+        }
+
+        /* --- PERFORMANCE OPTIMIZED BG --- */
+        .bg-grid {
+            position: fixed; inset: 0;
+            background-image: linear-gradient(rgba(0, 123, 255, 0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 123, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px; transform: rotateX(70deg); z-index: -1;
+            animation: gridMove 16s linear infinite; will-change: transform;
+        }
+        @keyframes gridMove { from { transform: rotateX(70deg) translateY(0); } to { transform: rotateX(70deg) translateY(50px); } }
+
+        /* --- STYLISH HERO --- */
+        .hero-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 32px; padding: 35px 22px; text-align: center;
+            backdrop-filter: blur(15px); box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            margin-bottom: 20px; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .m-icon-wrap {
+            width: 100px; height: 100px; margin: 0 auto 20px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle, rgba(0,123,255,0.2), transparent);
+            border: 1px solid rgba(0,242,255,0.3); position: relative;
+        }
+        .m-icon-wrap i { font-size: 2.5rem; color: var(--gold); animation: wrench 2.5s ease-in-out infinite; }
+        @keyframes wrench { 0%, 100% { transform: rotate(-15deg); } 50% { transform: rotate(15deg); } }
+
+        h1 { font-size: 1.6rem; font-weight: 900; margin-bottom: 12px; }
+        .hero-sub { color: var(--text-soft); font-size: 0.92rem; line-height: 1.6; }
+
+        /* --- SECTIONS --- */
+        .section {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px; padding: 22px; margin-bottom: 15px; backdrop-filter: blur(10px);
+        }
+        .section-title {
+            display: flex; align-items: center; gap: 12px; font-weight: 900;
+            margin-bottom: 15px; font-size: 1rem; color: var(--primary);
+        }
+        .section-title i { background: rgba(0,123,255,0.1); padding: 10px; border-radius: 12px; }
+        .section p { color: var(--text-soft); font-size: 0.88rem; line-height: 1.7; }
+
+        /* --- MINI GRID --- */
+        .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
+        .mini-card {
+            background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+            padding: 15px; border-radius: 20px;
+        }
+        .mini-card h4 { font-size: 0.85rem; margin-bottom: 6px; color: #fff; }
+        .mini-card p { font-size: 0.75rem; color: var(--text-fade); line-height: 1.4; }
+
+        /* --- PILLS & FAQ --- */
+        .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
+        .pill { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; }
+        
+        .faq-item { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 18px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.03); }
+        .faq-q { font-weight: 800; font-size: 0.85rem; margin-bottom: 5px; color: var(--neon-blue); }
+        .faq-a { font-size: 0.82rem; color: var(--text-soft); }
+
+        .btn-status {
+            width: 100%; padding: 16px; border-radius: 20px; border: none;
+            background: linear-gradient(135deg, var(--primary), #0056b3);
+            color: white; font-weight: 900; font-size: 0.9rem; margin-bottom: 25px;
+            box-shadow: 0 10px 20px rgba(0,123,255,0.3);
+        }
+
+        @keyframes popIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .bouncy:active { transform: scale(0.95); transition: 0.1s; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-grid"></div>
+
+    <button class="btn-status bouncy" onclick="location.href='login.html'">
+        <i class="fa-solid fa-rotate-right" style="margin-right:8px"></i> Check Maintenance Status
+    </button>
+
+    <div class="hero-card">
+        <div class="m-icon-wrap">
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+        </div>
+        <h1>Site Under Maintenance</h1>
+        <p class="hero-sub">Aviator Genius is currently undergoing scheduled improvement and security updates. Some services are temporarily unavailable while our system is being worked on.</p>
+    </div>
+
+    <div class="section">
+        <div class="section-title"><i class="fa-solid fa-circle-info"></i> Meaning</div>
+        <p>
+            When site is under maintenance it means the site developers are updating the site, fixing existing issues or adding new features to the site, so for user funds safety we make the site automatically send the maintenance message so that user won't deposit, withdraw or play any game when under maintenance.
+            <br><br>
+            This safety lock helps protect account balances, game sessions, wallet transactions, payout calculations and live system processes from being interrupted while updates are being applied.
+        </p>
+    </div>
+
+    <div class="section">
+        <div class="section-title"><i class="fa-solid fa-shield-halved"></i> Why Maintenance Mode Exists</div>
+        <div class="mini-grid">
+            <div class="mini-card">
+                <h4>Funds Protection</h4>
+                <p>Prevents accidental deposits and wallet sync issues.</p>
+            </div>
+            <div class="mini-card">
+                <h4>Feature Upgrades</h4>
+                <p>New improvements and performance boosts applied.</p>
+            </div>
+            <div class="mini-card">
+                <h4>Bug Fixing</h4>
+                <p>Correcting visual glitches and loading issues.</p>
+            </div>
+            <div class="mini-card">
+                <h4>Security</h4>
+                <p>Keeps transaction flow and system access safe.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title"><i class="fa-solid fa-gears"></i> What's Happening Now</div>
+        <p>The development system may currently be syncing game modules, improving wallet flow, updating user dashboard logic, or testing new premium features before reopening.</p>
+        <div class="pill-row">
+            <div class="pill">Wallet Sync</div>
+            <div class="pill">UI Upgrade</div>
+            <div class="pill">System Patch</div>
+            <div class="pill">Security Check</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title"><i class="fa-solid fa-circle-question"></i> Quick Reference</div>
+        <div class="faq-item">
+            <div class="faq-q">Can I deposit or withdraw?</div>
+            <div class="faq-a">No. Financial actions are paused to ensure your balance remains safe and accurate.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q">Can I play games?</div>
+            <div class="faq-a">No. Access is blocked to prevent interrupted sessions or unstable results.</div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-q">When will it be back?</div>
+            <div class="faq-a">Use the button at the top to check if the protection lock has been lifted.</div>
+        </div>
+    </div>
+
+    <p style="text-align:center; color:var(--text-fade); font-size:0.75rem; padding-bottom:30px;">
+        Aviator Genius Maintenance Protection System<br>User Funds Safety Mode Enabled
+    </p>
+
+</body>
+</html>
