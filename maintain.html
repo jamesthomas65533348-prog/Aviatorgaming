@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Aviator Genius - Maintenance</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --neon-blue: #00f2ff;
+            --bg-dark: #010409; 
+            --bg-accent: #050a15;
+            --card-bg: rgba(13, 25, 48, 0.96);
+            --success: #2ecc71; 
+            --error: #ff4d4d;
+            --gold: #fbbf24;
+            --text-soft: rgba(255,255,255,0.72);
+            --text-fade: rgba(255,255,255,0.45);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            background: linear-gradient(180deg, var(--bg-accent) 0%, var(--bg-dark) 100%);
+            color: white; font-family: 'Segoe UI', Roboto, sans-serif;
+            padding: 20px 16px; min-height: 100vh; overflow-x: hidden;
+        }
+
+        /* --- LIVE STATUS BAR --- */
+        .status-bar {
+            width: 100%;
+            padding: 15px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: 0.3s;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        /* Pulsing effect for the dot */
+        .status-indicator::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            background: inherit;
+            opacity: 0.4;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-text-wrap { display: flex; flex-direction: column; }
+        .status-label { font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
+        .status-msg { font-size: 0.85rem; font-weight: 700; }
+
+        /* Status Variants */
+        .status-red { border-color: rgba(255, 77, 77, 0.3); background: rgba(255, 77, 77, 0.05); }
+        .status-red .status-indicator { background: var(--error); box-shadow: 0 0 10px var(--error); }
+        .status-red .status-msg { color: var(--error); }
+
+        .status-green { border-color: rgba(46, 204, 113, 0.3); background: rgba(46, 204, 113, 0.05); }
+        .status-green .status-indicator { background: var(--success); box-shadow: 0 0 10px var(--success); }
+        .status-green .status-msg { color: var(--success); }
+
+        @keyframes pulse { 0% { transform: scale(1); opacity: 0.4; } 100% { transform: scale(2.5); opacity: 0; } }
+
+        /* --- PERFORMANCE OPTIMIZED BG --- */
+        .bg-grid {
+            position: fixed; inset: 0;
+            background-image: linear-gradient(rgba(0, 123, 255, 0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 123, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px; transform: rotateX(70deg); z-index: -1;
+            animation: gridMove 16s linear infinite; will-change: transform;
+        }
+        @keyframes gridMove { from { transform: rotateX(70deg) translateY(0); } to { transform: rotateX(70deg) translateY(50px); } }
+
+        /* --- STYLISH HERO --- */
+        .hero-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 32px; padding: 35px 22px; text-align: center;
+            backdrop-filter: blur(15px); box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            margin-bottom: 20px; animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .m-icon-wrap {
+            width: 100px; height: 100px; margin: 0 auto 20px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle, rgba(0,123,255,0.2), transparent);
+            border: 1px solid rgba(0,242,255,0.3); position: relative;
+        }
+        .m-icon-wrap i { font-size: 2.5rem; color: var(--gold); animation: wrench 2.5s ease-in-out infinite; }
+        @keyframes wrench { 0%, 100% { transform: rotate(-15deg); } 50% { transform: rotate(15deg); } }
+
+        h1 { font-size: 1.6rem; font-weight: 900; margin-bottom: 12px; }
+        .hero-sub { color: var(--text-soft); font-size: 0.92rem; line-height: 1.6; }
+
+        /* --- SECTIONS --- */
+        .section {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px; padding: 22px; margin-bottom: 15px; backdrop-filter: blur(10px);
+        }
+        .section-title {
+            display: flex; align-items: center; gap: 12px; font-weight: 900;
+            margin-bottom: 15px; font-size: 1rem; color: var(--primary);
+        }
+        .section-title i { background: rgba(0,123,255,0.1); padding: 10px; border-radius: 12px; }
+        .section p { color: var(--text-soft); font-size: 0.88rem; line-height: 1.7; }
+
+        .btn-status {
+            width: 100%; padding: 16px; border-radius: 20px; border: none;
+            background: linear-gradient(135deg, var(--primary), #0056b3);
+            color: white; font-weight: 900; font-size: 0.9rem; margin-bottom: 25px;
+            box-shadow: 0 10px 20px rgba(0,123,255,0.3);
+            display: none; /* Hidden by default, shown when maintenance is OFF */
+        }
+
+        @keyframes popIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .bouncy:active { transform: scale(0.95); transition: 0.1s; }
+    </style>
+</head>
+<body>
+
+    <div class="bg-grid"></div>
+
+    <div id="status-container" class="status-bar status-red">
+        <div class="status-indicator"></div>
+        <div class="status-text-wrap">
+            <span class="status-label">System Lock</span>
+            <span id="status-msg" class="status-msg">Maintenance Active</span>
+        </div>
+    </div>
+
+    <button id="entry-btn" class="btn-status bouncy" onclick="location.href='login.html'">
+        <i class="fa-solid fa-right-to-bracket" style="margin-right:8px"></i> Return to Terminal
+    </button>
+
+    <div class="hero-card">
+        <div class="m-icon-wrap">
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+        </div>
+        <h1>Site Under Maintenance</h1>
+        <p class="hero-sub">Aviator Genius is currently undergoing scheduled improvement and security updates. Some services are temporarily unavailable while our system is being worked on.</p>
+    </div>
+
+    <div class="section">
+        <div class="section-title"><i class="fa-solid fa-circle-info"></i> Meaning</div>
+        <p>
+            When the site is under maintenance, developers are updating code or adding features. To ensure user funds' safety, we lock the system to prevent transactions or gameplay during the process.
+        </p>
+    </div>
+
+    <script>
+        var _supa;
+        const CONFIG_ID = "f4c6da92-d822-4e30-8a93-b90c7df78390";
+
+        window.onload = async function() {
+            _supa = getClient();
+            checkLiveStatus();
+            // Check every 10 seconds to auto-update the UI for the user
+            setInterval(checkLiveStatus, 10000);
+        };
+
+        async function checkLiveStatus() {
+            const { data } = await _supa.from('system_config').select('maintenance_mode').eq('id', CONFIG_ID).maybeSingle();
+            
+            const container = document.getElementById('status-container');
+            const msg = document.getElementById('status-msg');
+            const btn = document.getElementById('entry-btn');
+
+            if (data && data.maintenance_mode === false) {
+                // MAINTENANCE OVER (GREEN)
+                container.className = "status-bar status-green";
+                msg.innerText = "Maintenance Complete - Access Restored";
+                btn.style.display = "block"; // Show the login button
+            } else {
+                // STILL UNDER MAINTENANCE (RED)
+                container.className = "status-bar status-red";
+                msg.innerText = "Maintenance Active - Under Construction";
+                btn.style.display = "none"; // Hide the login button
+            }
+        }
+    </script>
+</body>
+</html>
