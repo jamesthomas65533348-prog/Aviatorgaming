@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Login - Aviator Genius</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="config.js"></script>
+
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --bg-dark: #02050a; 
+            --card-bg: rgba(13, 25, 48, 0.98);
+            --input-bg: rgba(0, 0, 0, 0.3);
+            --error: #ff3366; 
+            --success: #00ff88; 
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+        input { user-select: auto !important; -webkit-user-select: auto !important; }
+
+        body { 
+            background: var(--bg-dark);
+            color: white; font-family: 'Segoe UI', Roboto, sans-serif; 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; margin: 0; overflow: hidden;
+        }
+
+        .liquid-bg {
+            position: fixed; width: 450px; height: 450px;
+            background: radial-gradient(circle, rgba(0, 123, 255, 0.15) 0%, transparent 75%);
+            filter: blur(60px); z-index: -1;
+            top: -100px; right: -100px;
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            padding: 45px 30px; border-radius: 35px; 
+            width: 92%; max-width: 380px; 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            text-align: center; 
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+            animation: slideFade 0.6s ease-out;
+        }
+
+        @keyframes slideFade {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 { 
+            font-size: 1.8rem; font-weight: 900; margin: 0; 
+            letter-spacing: 1px; color: #fff;
+            text-shadow: 0 0 20px rgba(0, 123, 255, 0.4);
+        }
+
+        .subtitle { font-size: 0.85rem; color: #64748b; margin: 8px 0 35px; font-weight: 600; }
+
+        .input-group { position: relative; margin-bottom: 18px; }
+        .input-group i:not(.eye-icon) {
+            position: absolute; left: 18px; top: 50%;
+            transform: translateY(-50%); color: var(--primary); font-size: 1rem;
+        }
+        
+        input { 
+            width: 100%; padding: 18px 50px 18px 48px; 
+            border-radius: 18px; border: 1px solid rgba(255, 255, 255, 0.08); 
+            background: var(--input-bg); color: white; 
+            font-size: 0.95rem; transition: 0.3s; outline: none;
+        }
+
+        input:focus { 
+            border-color: var(--primary);
+            background: rgba(0, 0, 0, 0.5);
+            box-shadow: 0 0 15px rgba(0, 123, 255, 0.2);
+        }
+
+        .eye-btn {
+            position: absolute; right: 15px; top: 50%; 
+            transform: translateY(-50%); color: #475569; 
+            cursor: pointer; width: 35px; height: 35px;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
+        }
+        .eye-btn.active { color: var(--primary); }
+
+        .login-btn { 
+            width: 100%; padding: 18px; 
+            background: linear-gradient(135deg, var(--primary), #0056b3); 
+            color: white; border: none; border-radius: 18px; 
+            font-weight: 900; font-size: 1rem; text-transform: uppercase;
+            cursor: pointer; margin-top: 10px;
+            box-shadow: 0 10px 25px rgba(0, 123, 255, 0.3);
+            transition: 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .login-btn:active { transform: scale(0.93); }
+        .login-btn:disabled { opacity: 0.6; transform: none; }
+
+        #toast { 
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%); 
+            padding: 15px 30px; border-radius: 20px; z-index: 9999; 
+            font-weight: 800; font-size: 0.85rem; color: white;
+            transition: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            display: flex; align-items: center; gap: 10px;
+        }
+        #toast.show { top: 30px; }
+
+        .footer-link { 
+            margin-top: 30px; font-size: 0.85rem; color: #64748b; 
+            cursor: pointer; font-weight: 600;
+        }
+        .footer-link b { color: var(--primary); }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div class="liquid-bg"></div>
+    <div id="toast"></div>
+
+    <div class="card">
+        <h2>GENIUS LOGIN</h2>
+        <p class="subtitle">Enter your flight credentials</p>
+
+        <div class="input-group">
+            <i class="fa-solid fa-user-ninja"></i>
+            <input type="email" id="login-email" placeholder="Email Address">
+        </div>
+
+        <div class="input-group">
+            <i class="fa-solid fa-key"></i>
+            <input type="password" id="login-pass" placeholder="Password">
+            <div class="eye-btn" onclick="togglePassword()">
+                <i class="fa-solid fa-eye" id="eyeIcon"></i>
+            </div>
+        </div>
+
+        <button id="btn" class="login-btn" onclick="handleLogin()">
+            Start Session
+        </button>
+        
+        <p class="footer-link" onclick="location.href='index.html'">
+            New pilot? <b>Create Account</b>
+        </p>
+    </div>
+
+    <script>
+        var _supa;
+        window.onload = function() { _supa = getClient(); };
+
+        function togglePassword() {
+            var input = document.getElementById('login-pass');
+            var icon = document.getElementById('eyeIcon');
+            var btn = icon.parentElement;
+
+            if (input.type === "password") {
+                input.type = "text";
+                icon.className = "fa-solid fa-eye-slash";
+                btn.classList.add('active');
+            } else {
+                input.type = "password";
+                icon.className = "fa-solid fa-eye";
+                btn.classList.remove('active');
+            }
+        }
+
+        function showToast(msg, isSuccess) {
+            const t = document.getElementById('toast');
+            t.innerHTML = isSuccess ? `<i class="fa-solid fa-circle-check"></i> ${msg}` : `<i class="fa-solid fa-circle-xmark"></i> ${msg}`;
+            t.style.background = isSuccess ? "var(--success)" : "var(--error)";
+            t.classList.add("show");
+            setTimeout(() => t.classList.remove("show"), 3000);
+        }
+
+        async function handleLogin() {
+            var email = document.getElementById('login-email').value.trim();
+            var pass = document.getElementById('login-pass').value;
+            var btn = document.getElementById('btn');
+
+            if (!email || !pass) return showToast("Required fields missing", false);
+
+            btn.innerText = "AUTHENTICATING...";
+            btn.disabled = true;
+
+            try {
+                const { data, error } = await _supa
+                    .from('profiles')
+                    .select('*')
+                    .eq('email', email)
+                    .eq('password', pass)
+                    .maybeSingle();
+
+                if (error || !data) {
+                    showToast("Invalid Credentials", false);
+                    btn.innerText = "Start Session";
+                    btn.disabled = false;
+                    return;
+                }
+
+                if (data.otp_status === 'PENDING') {
+                    showToast("Account Not Verified", false);
+                    btn.innerText = "Start Session";
+                    btn.disabled = false;
+                    return;
+                }
+
+                // --- NEW SESSION LOGIC ---
+                const newSessId = "sess_" + Math.random().toString(36).substr(2, 9) + Date.now();
+                
+                const { error: sessError } = await _supa
+                    .from('profiles')
+                    .update({ current_session_id: newSessId })
+                    .eq('email', email);
+
+                if (sessError) {
+                    showToast("Session Initialization Failed", false);
+                    btn.innerText = "Start Session";
+                    btn.disabled = false;
+                    return;
+                }
+
+                showToast("Access Granted!", true);
+                localStorage.setItem('user_email', data.email);
+                localStorage.setItem('user_id', data.id);
+                localStorage.setItem('my_session_id', newSessId); // Save ID to this device
+                
+                setTimeout(() => { location.href='home.html'; }, 1500);
+
+            } catch (err) {
+                showToast("Server Offline", false);
+                btn.innerText = "Start Session";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
