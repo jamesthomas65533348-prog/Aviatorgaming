@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin: Virtual Control Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --ios-blue: #007aff; --ios-red: #ff3b30; --ios-green: #34c759;
+            --admin-dark: #121212; --card-bg: #1c1c1e; --border: rgba(255,255,255,0.1);
+            --gold: #fbbf24; --ash: #8e8e93;
+        }
+
+        * { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        input, select { user-select: auto !important; -webkit-user-select: auto !important; }
+
+        body {
+            background: var(--admin-dark); color: white;
+            font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 20px;
+            overflow-x: hidden;
+        }
+
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
+        section { background: var(--card-bg); border-radius: 15px; padding: 20px; border: 1px solid var(--border); margin-bottom: 20px; }
+        h2 { font-size: 18px; margin-top: 0; color: var(--ios-blue); display: flex; align-items: center; gap: 10px; }
+
+        .tab-container { display: flex; background: #2c2c2e; border-radius: 10px; padding: 3px; margin-bottom: 15px; }
+        .tab { flex: 1; text-align: center; padding: 8px; font-size: 12px; font-weight: 800; border-radius: 8px; cursor: pointer; color: var(--ash); transition: 0.3s; }
+        .tab.active { background: var(--ios-red); color: white; transform: scale(1.05); }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 11px; color: #8e8e93; margin-bottom: 5px; font-weight: 700; text-transform: uppercase; }
+        select, input {
+            width: 100%; background: #2c2c2e; border: 1px solid var(--border);
+            padding: 12px; border-radius: 8px; color: white; outline: none; box-sizing: border-box;
+        }
+
+        .market-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+            background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; margin-bottom: 15px;
+        }
+        .market-grid input { padding: 8px; font-size: 13px; text-align: center; }
+
+        .live-card {
+            background: #2c2c2e; border-radius: 12px; padding: 15px; margin-bottom: 15px;
+            border-left: 4px solid #555; transition: 0.3s; cursor: pointer;
+        }
+        .live-card:active { transform: scale(0.98); }
+        .live-card.is-live { border-left-color: var(--ios-green); }
+        .live-card.is-settled { border-left-color: var(--gold); opacity: 0.8; }
+
+        .score-control { display: flex; align-items: center; gap: 15px; background: #1c1c1e; padding: 10px; border-radius: 10px; }
+        .score-btn { background: var(--ios-blue); border: none; color: white; padding: 5px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .score-btn:disabled { background: #444; cursor: not-allowed; opacity: 0.5; }
+        .score-btn:active:not(:disabled) { transform: scale(0.9); }
+
+        .btn-deploy { background: var(--ios-green); color: black; font-weight: 900; width: 100%; border: none; padding: 18px; border-radius: 12px; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn-lock { background: var(--ios-red); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 800; cursor: pointer; transition: 0.2s;}
+        .btn-settle { background: var(--ios-green); color: black; border: none; padding: 8px 15px; border-radius: 8px; font-size: 11px; font-weight: 900; cursor: pointer; transition: 0.2s;}
+
+        .removal-timer { color: var(--ios-red); font-size: 11px; font-weight: 900; background: rgba(255,59,48,0.1); padding: 4px 10px; border-radius: 5px; }
+        .status-pill { font-size: 10px; padding: 4px 8px; border-radius: 4px; font-weight: 800; background: #444; }
+        .status-pill.active { background: var(--ios-red); color: white; }
+
+        .first-scorer-badge { font-size: 10px; color: var(--gold); font-weight: bold; margin-top: 5px; display: block;}
+        .odd-edit-box { background: #1c1c1e; border: 1px solid var(--border); padding: 5px; border-radius: 8px; }
+        .odd-edit-box input { background: transparent; border: none; width: 40px; text-align: center; color: var(--gold); font-weight: bold; padding: 2px; }
+
+        #details-modal {
+            display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
+            background:rgba(0,0,0,0.85); z-index:1000; overflow-y:auto; padding:20px; box-sizing:border-box;
+            backdrop-filter: blur(5px);
+        }
+        .modal-body {
+            max-width:600px; margin:auto; background:var(--card-bg); border-radius:25px; 
+            padding:25px; border:1px solid var(--border);
+            animation: popIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .toast {
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+            background: white; color: black; padding: 12px 25px;
+            border-radius: 30px; font-weight: 700; font-size: 14px; z-index: 9999;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 10px;
+            animation: toastIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .toast.error { background: var(--ios-red); color: white; }
+        .toast.success { background: var(--ios-green); color: black; }
+
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes toastIn { 0% { top: -50px; opacity: 0; } 100% { top: 30px; opacity: 1; } }
+
+        @media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1 style="margin:0; font-size: 24px;">Virtual Control Center</h1>
+            <p style="margin:0; color: #8e8e93; font-size: 13px;">Match Oracle & Manual Settlement</p>
+        </div>
+        <button onclick="location.href='admin-shield.html'" style="background:none; border: 1px solid var(--border); color: white; padding: 8px 15px; border-radius: 8px; font-weight: 700;">Exit</button>
+    </header>
+
+    <div class="grid">
+        <div>
+            <section>
+                <h2><i class="fa-solid fa-shield-halved"></i> Team Manager</h2>
+                <div class="team-manager">
+                    <div class="form-group"><label>New Team Name</label><input type="text" id="new-team-name" placeholder="e.g. Arsenal"></div>
+                    <div class="form-group"><label>Logo (Upload)</label><input type="file" id="team-logo-file" accept="image/*" style="font-size: 10px;"></div>
+                </div>
+                <button onclick="uploadTeam()" style="width:100%; background:var(--ios-blue); color:white; border:none; padding:10px; border-radius:8px; font-weight:700;">ADD TEAM TO ASSETS</button>
+            </section>
+
+            <section>
+                <h2><i class="fa-solid fa-plus-circle"></i> Create New Match</h2>
+                <div class="form-group" style="display:flex; gap:10px;">
+                    <div style="flex:1"><label>Home Team</label><select id="home-team-select"></select></div>
+                    <div style="flex:1"><label>Away Team</label><select id="away-team-select"></select></div>
+                </div>
+                <div class="form-group" style="display:flex; gap:10px;">
+                    <div style="flex:1"><label>Start Date/Time</label><input type="datetime-local" id="match-start-time"></div>
+                    <div style="flex:1"><label>Match Duration (Mins)</label><input type="number" id="match-duration" value="15"></div>
+                </div>
+                <div id="odds-form-container"></div>
+                <button class="btn-deploy" id="deploy-btn" onclick="deployMatch()">DEPLOY MATCH</button>
+            </section>
+        </div>
+
+        <div>
+            <section>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2 style="margin:0;"><i class="fa-solid fa-tower-broadcast"></i> Active Games</h2>
+                    <div class="tab-container" style="width: 180px; margin-bottom:0;">
+                        <div class="tab active" id="admin-tab-live" onclick="setAdminTab('LIVE')">LIVE</div>
+                        <div class="tab" id="admin-tab-prematch" onclick="setAdminTab('PREMATCH')">PRE-MATCH</div>
+                    </div>
+                </div>
+                <div id="active-matches-container"></div>
+            </section>
+        </div>
+    </div>
+
+    <div id="details-modal">
+        <div class="modal-body">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 id="modal-title" style="margin:0; color:white;">Match Details</h2>
+                <button onclick="closeModal()" style="background:var(--ios-red); border:none; color:white; padding:10px; border-radius:50%; width:35px; height:35px; cursor:pointer;">&times;</button>
+            </div>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const _supa = getClient();
+        let teamAssets = []; let activeMatches = []; let currentAdminTab = 'LIVE';
+
+        function showToast(msg, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = type === 'success' ? 'check-circle' : 'exclamation-triangle';
+            toast.innerHTML = `<i class="fa-solid fa-${icon}"></i> ${msg}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = "popIn 0.3s reverse forwards";
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        const marketsConfig = {
+            "Straight win": ["1", "X", "2"],
+            "Double chance": ["1x", "12", "x2"],
+            "Over and under": ["O 0.5", "U 0.5", "O 1.5", "U 1.5", "O 2.5", "U 2.5", "O 3.5", "U 3.5", "O 4.5", "U 4.5"],
+            "GG/NG": ["GG", "NG"],
+            "Handicap 1:0": ["Home", "Draw", "Away"],
+            "Handicap 2:0": ["Home", "Draw", "Away"],
+            "Handicap 3:0": ["Home", "Draw", "Away"],
+            "Handicap 0:1": ["Home", "Draw", "Away"],
+            "Handicap 0:2": ["Home", "Draw", "Away"],
+            "Handicap 0:3": ["Home", "Draw", "Away"],
+            "Correct score": ["1:0", "2:0", "3:0", "0:0", "1:1", "2:2", "3:3", "0:1", "0:2", "0:3", "2:1", "3:1", "3:2", "1:2", "1:3", "2:3", "OTHERS"],
+            "1st Team to score": ["Home", "None", "Away"],
+            "Home O/U": ["O 1.5", "U 1.5", "O 2.5", "U 2.5", "O 3.5", "U 3.5"],
+            "Away O/U": ["O 1.5", "U 1.5", "O 2.5", "U 2.5", "O 3.5", "U 3.5"]
+        };
+
+        window.onload = async () => {
+            await loadTeams();
+            buildOddsForm();
+            fetchActiveMatches();
+            setInterval(() => { processAutomation(); renderMatches(); }, 1000);
+            _supa.channel('admin-sync').on('postgres_changes', { event: '*', table: 'virtual_matches' }, () => fetchActiveMatches()).subscribe();
+        };
+
+        function getMatchMinute(m) {
+            if (m.status === 'PREMATCH') return "PRE";
+            if (m.status === 'FINISHED') return "FT";
+            const elapsedMins = Math.floor((new Date() - new Date(m.start_time)) / 1000 / 60);
+            return elapsedMins;
+        }
+
+        async function updateScore(id, side, val) {
+            const match = activeMatches.find(m => m.id === id);
+            const currentMin = getMatchMinute(match);
+            if (currentMin >= (match.total_duration_mins || 15) || match.status === 'FINISHED') return;
+            
+            const update = side === 'home' ? { home_score: match.home_score + val } : { away_score: match.away_score + val };
+            
+            // Only update first_scorer if game is currently 0-0
+            if (match.home_score === 0 && match.away_score === 0) {
+                update.first_scorer = side === 'home' ? 'Home' : 'Away';
+            }
+            
+            const { error } = await _supa.from('virtual_matches').update(update).eq('id', id);
+            if(!error) showToast("Goal Updated!");
+        }
+
+        async function openDetails(matchId) {
+            const match = activeMatches.find(m => m.id === matchId);
+            if(!match) return;
+            const h = teamAssets.find(t => t.id === match.home_team_id);
+            const a = teamAssets.find(t => t.id === match.away_team_id);
+            document.getElementById('modal-title').innerText = `${h?.team_name} vs ${a?.team_name}`;
+            let html = `<p style="font-size:12px; color:#8e8e93; margin-bottom:15px;">Live Odds Management</p>`;
+            Object.entries(match.odds).forEach(([market, options]) => {
+                html += `<div style="margin-bottom:20px;"><label style="color:var(--ios-blue); font-size:13px;">${market}</label><div class="market-grid">`;
+                Object.entries(options).forEach(([opt, val]) => {
+                    const isOptLocked = match.locked_markets?.[market]?.[opt];
+                    html += `<div class="odd-edit-box" style="border-color:${isOptLocked ? 'var(--ios-red)' : 'var(--border)'}">
+                        <div style="font-size:10px; color:#8e8e93; display:flex; justify-content:space-between;">
+                            <span>${opt}</span>
+                            <i class="fa-solid ${isOptLocked ? 'fa-lock' : 'fa-lock-open'}" onclick="toggleSingleOdd('${match.id}', '${market}', '${opt}', ${isOptLocked})" style="cursor:pointer; color:${isOptLocked ? 'var(--ios-red)' : 'var(--ios-green)'}"></i>
+                        </div>
+                        <div style="display:flex; align-items:center;">
+                            <input type="number" step="0.01" value="${val}" id="edit-${market}-${opt}">
+                            <button onclick="saveSingleOdd('${match.id}', '${market}', '${opt}')" style="background:none; border:none; color:var(--ios-blue); font-size:10px; cursor:pointer;">SET</button>
+                        </div>
+                    </div>`;
+                });
+                html += `</div></div>`;
+            });
+            document.getElementById('modal-content').innerHTML = html;
+            document.getElementById('details-modal').style.display = 'block';
+        }
+
+        async function saveSingleOdd(id, market, opt) {
+            const newVal = parseFloat(document.getElementById(`edit-${market}-${opt}`).value);
+            const match = activeMatches.find(m => m.id === id);
+            const updatedOdds = {...match.odds}; updatedOdds[market][opt] = newVal;
+            const { error } = await _supa.from('virtual_matches').update({ odds: updatedOdds }).eq('id', id);
+            if(!error) showToast("Odds Updated!");
+        }
+
+        async function toggleSingleOdd(id, market, opt, currentStatus) {
+            const match = activeMatches.find(m => m.id === id);
+            const locked = match.locked_markets || {}; if(!locked[market]) locked[market] = {};
+            locked[market][opt] = !currentStatus;
+            await _supa.from('virtual_matches').update({ locked_markets: locked }).eq('id', id);
+            openDetails(id);
+        }
+
+        async function manualSettleMatch(id) {
+            if(!confirm("Finalize result and settle all bets?")) return;
+            
+            // 1. Update Match status to FINISHED
+            const { error: matchError } = await _supa.from('virtual_matches')
+                .update({ status: 'FINISHED', updated_at: new Date().toISOString() })
+                .eq('id', id);
+
+            if(matchError) return showToast("Match status update failed", "error");
+
+            // 2. Trigger money settlement RPC
+            const { error: rpcError } = await _supa.rpc('settle_all_virtual_bets');
+            
+            if(rpcError) {
+                showToast("Settlement RPC error.", "error");
+            } else {
+                showToast("All Bets Settled Successfully!");
+                fetchActiveMatches();
+            }
+        }
+
+        function renderMatches() {
+            const container = document.getElementById('active-matches-container');
+            const filtered = activeMatches.filter(m => m.status === currentAdminTab || (currentAdminTab === 'LIVE' && m.status === 'FINISHED'));
+            container.innerHTML = filtered.map(m => {
+                const h = teamAssets.find(t => t.id === m.home_team_id);
+                const a = teamAssets.find(t => t.id === m.away_team_id);
+                const min = getMatchMinute(m); const isFT = m.status === 'FINISHED';
+                const showSettle = m.status === 'LIVE' && min >= (m.total_duration_mins || 15);
+                const scoringDisabled = isFT || (m.status === 'LIVE' && min >= (m.total_duration_mins || 15));
+                return `
+                    <div class="live-card ${m.status === 'LIVE' ? 'is-live' : ''} ${isFT ? 'is-settled' : ''}" onclick="openDetails('${m.id}')">
+                        <div class="live-header">
+                            <div>
+                                <span class="status-pill ${m.status === 'LIVE' ? 'active' : ''}">${isFT ? 'SETTLED' : (m.status === 'LIVE' ? 'LIVE ' + min + "'" : 'PRE-MATCH')}</span>
+                                <strong style="margin-left:10px;">${h?.team_name} vs ${a?.team_name}</strong>
+                                <span class="first-scorer-badge">1ST SCORER: ${m.first_scorer || 'None'}</span>
+                            </div>
+                            <div onclick="event.stopPropagation()" style="display:flex; align-items:center; gap:10px;">
+                                ${isFT ? `<span class="removal-timer"><i class="fa-solid fa-trash-can"></i> Purging...</span>` : ''}
+                                ${showSettle ? `<button class="btn-settle" onclick="manualSettleMatch('${m.id}')">SETTLE</button>` : ''}
+                                ${!isFT ? `<button class="btn-lock" onclick="toggleLock('${m.id}', ${m.is_locked})">${m.is_locked ? 'UNLOCK' : 'LOCK'}</button>` : ''}
+                            </div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;" onclick="event.stopPropagation()">
+                            <div class="score-control">
+                                <button class="score-btn" ${scoringDisabled ? 'disabled' : ''} onclick="updateScore('${m.id}', 'home', 1)">+ H</button>
+                                <span style="font-size:24px; font-weight:900;">${m.home_score} : ${m.away_score}</span>
+                                <button class="score-btn" ${scoringDisabled ? 'disabled' : ''} onclick="updateScore('${m.id}', 'away', 1)">+ A</button>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('') || `<p style="text-align:center; padding:20px; color:#444;">No matches.</p>`;
+        }
+
+        async function processAutomation() {
+            const now = new Date(); let needsRefresh = false;
+            for (let m of activeMatches) {
+                if (m.status === 'PREMATCH' && now >= new Date(m.start_time)) await _supa.from('virtual_matches').update({ status: 'LIVE' }).eq('id', m.id);
+                if (m.status === 'FINISHED' && (now - new Date(m.updated_at)) / 1000 >= 300) { 
+                    await _supa.from('virtual_matches').delete().eq('id', m.id); 
+                    needsRefresh = true; 
+                }
+            }
+            if (needsRefresh) fetchActiveMatches();
+        }
+
+        async function fetchActiveMatches() { const { data } = await _supa.from('virtual_matches').select('*').order('start_time'); activeMatches = data || []; renderMatches(); }
+        async function toggleLock(id, status) { const { error } = await _supa.from('virtual_matches').update({ is_locked: !status }).eq('id', id); if(!error) showToast(!status ? "Locked" : "Unlocked"); }
+        function setAdminTab(t) { currentAdminTab = t; document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.id === `admin-tab-${t.toLowerCase()}`)); renderMatches(); }
+        function closeModal() { const m = document.getElementById('details-modal'); m.querySelector('.modal-body').style.animation = "popIn 0.3s reverse forwards"; setTimeout(() => { m.style.display = 'none'; m.querySelector('.modal-body').style.animation = ""; }, 300); }
+        async function loadTeams() { const { data } = await _supa.from('team_assets').select('*').order('team_name'); teamAssets = data || []; document.querySelectorAll('select').forEach(s => s.innerHTML = teamAssets.map(t => `<option value="${t.id}">${t.team_name}</option>`).join('')); }
+
+        function buildOddsForm() {
+            document.getElementById('odds-form-container').innerHTML = Object.entries(marketsConfig).map(([market, picks]) => `
+                <div style="margin-top:15px;"><label style="color:white">${market}</label>
+                <div class="market-grid" style="grid-template-columns: repeat(${picks.length > 4 ? 4 : 3}, 1fr)">
+                ${picks.map(p => `<input type="number" step="0.01" class="odd-input" data-market="${market}" data-option="${p}" placeholder="${p}">`).join('')}</div></div>`).join('');
+        }
+
+        async function deployMatch() {
+            const odds = {}; let isValid = true;
+            document.querySelectorAll('.odd-input').forEach(input => {
+                if(!input.value) isValid = false;
+                if(!odds[input.dataset.market]) odds[input.dataset.market] = {};
+                odds[input.dataset.market][input.dataset.option] = parseFloat(input.value);
+            });
+            if(!isValid) return showToast("Fill all odds!", "error");
+            const { error } = await _supa.from('virtual_matches').insert({
+                home_team_id: document.getElementById('home-team-select').value, away_team_id: document.getElementById('away-team-select').value,
+                start_time: new Date(document.getElementById('match-start-time').value).toISOString(), total_duration_mins: parseInt(document.getElementById('match-duration').value),
+                odds, home_score: 0, away_score: 0, status: 'PREMATCH', first_scorer: 'None', updated_at: new Date().toISOString()
+            });
+            if(!error) { showToast("Deployed!"); setTimeout(() => location.reload(), 1000); }
+        }
+
+        async function uploadTeam() {
+            const name = document.getElementById('new-team-name').value; const file = document.getElementById('team-logo-file').files[0];
+            if(!name || !file) return showToast("Missing fields", "error");
+            const path = `${Date.now()}_${file.name}`; await _supa.storage.from('team-logos').upload(path, file);
+            const { data: url } = _supa.storage.from('team-logos').getPublicUrl(path);
+            await _supa.from('team_assets').insert({ team_name: name, logo_url: url.publicUrl });
+            showToast("Team Added!"); setTimeout(() => location.reload(), 1000);
+        }
+    </script>
+</body>
+</html>

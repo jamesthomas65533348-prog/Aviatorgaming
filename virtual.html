@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Virtual Sports - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --ios-blue: #007aff; --ios-red: #ff3b30; --ios-green: #34c759;
+            --ios-dark: #000000; --card-glass: rgba(28, 28, 30, 0.7);
+            --gold: #fbbf24; --ash: #8e8e93;
+            --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* NEW ANIMATIONS FOR REAL-TIME UPDATES */
+        @keyframes goalBlink {
+            0%, 100% { color: white; }
+            25%, 75% { color: var(--ios-green); transform: scale(1.2); }
+        }
+        .goal-scored { animation: goalBlink 0.5s ease 2; }
+
+        @keyframes arrowUp {
+            0%, 100% { opacity: 0; transform: translateY(0); }
+            50% { opacity: 1; transform: translateY(-5px); color: var(--ios-green); }
+        }
+        @keyframes arrowDown {
+            0%, 100% { opacity: 0; transform: translateY(0); }
+            50% { opacity: 1; transform: translateY(5px); color: var(--ios-red); }
+        }
+        .odd-up { animation: arrowUp 1s ease-in-out 3; }
+        .odd-down { animation: arrowDown 1s ease-in-out 3; }
+
+        /* REMOVE HIGHLIGHT & SELECTION */
+        * { 
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none; 
+            -webkit-user-select: none; 
+        }
+        input, textarea { user-select: text !important; -webkit-user-select: text !important; }
+
+        body { 
+            background: var(--ios-dark); color: white; 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; 
+            margin: 0; padding: 0; min-height: 100vh; overflow-x: hidden;
+            overscroll-behavior-y: contain;
+        }
+
+        button, .odd-btn, .tab, .match-card, .view-slip-btn {
+            transition: transform 0.2s var(--bounce), opacity 0.2s ease;
+        }
+        button:active, .odd-btn:active, .tab:active, .view-slip-btn:active { transform: scale(0.92); }
+
+        .header {
+            position: sticky; top: 0; z-index: 1000;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(20px);
+            padding: 50px 15px 15px; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .balance-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02));
+            border-radius: 20px; padding: 15px;
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .balance-amount { font-size: 20px; font-weight: 900; color: var(--ios-green); letter-spacing: -0.5px; }
+
+        .tab-container { display: flex; background: rgba(255,255,255,0.08); border-radius: 14px; padding: 4px; }
+        .tab { flex: 1; text-align: center; padding: 12px; font-size: 13px; font-weight: 800; border-radius: 11px; cursor: pointer; color: var(--ash); }
+        .tab.active { background: var(--ios-red); color: white; box-shadow: 0 4px 15px rgba(255, 59, 48, 0.3); }
+
+        .match-list { padding: 15px; padding-bottom: 150px; }
+        .match-card { 
+            background: var(--card-glass); border-radius: 24px; padding: 18px; 
+            margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .quick-odds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .odd-btn { 
+            background: rgba(255,255,255,0.05); border-radius: 14px; padding: 12px 5px; text-align: center;
+            position: relative; overflow: visible;
+        }
+        .odd-btn.selected { background: var(--ios-red); color: white; border: 1px solid white; }
+
+        .indicator {
+            position: absolute; right: 2px; top: -5px; font-size: 10px; pointer-events: none; opacity: 0;
+        }
+
+        .booking-section { 
+            background: #1c1c1e; margin: 0 15px 20px; padding: 18px; 
+            border-radius: 24px; border: 1px dashed rgba(255,255,255,0.1);
+            display: flex; gap: 10px; align-items: center;
+        }
+        .booking-input { 
+            flex: 1; background: rgba(255,255,255,0.05); border: none; 
+            padding: 15px; border-radius: 14px; color: white; font-weight: 800;
+            outline: none; font-size: 14px; text-transform: uppercase;
+        }
+
+        .floating-container { 
+            position: fixed; bottom: 30px; left: 0; right: 0; 
+            display: flex; justify-content: center; z-index: 5000; 
+            pointer-events: none;
+        }
+        .view-slip-btn { 
+            pointer-events: auto; width: 90%; background: var(--ios-red); 
+            border-radius: 24px; padding: 20px 25px; display: none; 
+            justify-content: space-between; align-items: center; 
+            box-shadow: 0 15px 35px rgba(255, 59, 48, 0.4);
+            animation: slideUp 0.5s var(--bounce);
+        }
+
+        .market-overlay {
+            position: fixed; inset: 0; background: var(--ios-dark); z-index: 4000;
+            display: none; flex-direction: column; 
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .slip-item-container { 
+            position: relative; margin-bottom: 10px; overflow: hidden; border-radius: 18px; 
+        }
+        .slip-delete-trigger {
+            position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
+            background: var(--ios-red); display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 20px; z-index: 1; border-radius: 18px;
+        }
+        .slip-item { 
+            position: relative; z-index: 2; background: #1c1c1e; padding: 18px; 
+            display: flex; justify-content: space-between; align-items: center;
+            transition: transform 0.3s var(--bounce);
+        }
+
+        #toast-container {
+            position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+            z-index: 10000; width: 85%; pointer-events: none;
+        }
+        .toast {
+            background: rgba(28, 28, 30, 0.95); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1); color: white;
+            padding: 15px 20px; border-radius: 18px; margin-bottom: 10px;
+            display: flex; align-items: center; gap: 12px; font-weight: 700;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: toastIn 0.4s var(--bounce);
+        }
+        .toast.success i { color: var(--ios-green); }
+        .toast.error i { color: var(--ios-red); }
+
+        @keyframes toastIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { transform: translateY(100px); } to { opacity: 0; } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        .locked { opacity: 0.5; pointer-events: none !important; filter: grayscale(0.8); }
+        .vs-badge { background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 900; color: var(--ash); }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div class="market-overlay" id="sessionModal" style="display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.92); backdrop-filter:blur(10px); z-index: 20000;">
+        <div style="background:#1c1c1e; width:85%; padding:35px 25px; border-radius:32px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+            <div style="width:70px; height:70px; background:rgba(255, 59, 48, 0.1); color:var(--ios-red); font-size:35px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin: 0 auto 20px;">
+                <i class="fa-solid fa-shield-virus"></i>
+            </div>
+            <div style="font-weight:900; font-size:20px; margin-bottom:8px; color:white;">SESSION EXPIRED</div>
+            <div style="color:var(--ash); font-size:13px; margin-bottom:25px;">Logged in on another device. Play session terminated.</div>
+            <button onclick="confirmLogout()" style="width:100%; background:var(--ios-blue); color:white; border:none; padding:18px; border-radius:18px; font-weight:900;">BACK TO LOGIN</button>
+        </div>
+    </div>
+
+    <div class="header">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div style="font-weight:900; font-size:24px; letter-spacing: -1px;">VIRTUAL<span style="color:var(--ios-red)">.</span></div>
+            <div onclick="location.href='virtual-history.html'" style="background:rgba(255,255,255,0.05); padding:10px; border-radius:12px;">
+                <i class="fa-solid fa-clock-rotate-left" style="color:var(--ash); font-size:18px;"></i>
+            </div>
+        </div>
+
+        <div class="balance-card">
+            <div>
+                <div style="font-size:10px; color:var(--ash); font-weight:800; text-transform: uppercase; margin-bottom: 4px;">Main Balance</div>
+                <div class="balance-amount" id="user-balance">₦0.00</div>
+            </div>
+            <div style="background:var(--ios-blue); width:35px; height:35px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                <i class="fa-solid fa-plus" style="color:white; font-size:16px;"></i>
+            </div>
+        </div>
+
+        <div class="tab-container">
+            <div class="tab active" id="tab-live" onclick="setTab('LIVE')">LIVE</div>
+            <div class="tab" id="tab-prematch" onclick="setTab('PREMATCH')">PRE-MATCH</div>
+        </div>
+    </div>
+
+    <div class="match-list" id="match-container"></div>
+    
+    <div id="booking-loader" class="booking-section">
+        <i class="fa-solid fa-ticket-simple" style="color:var(--ash); opacity: 0.5;"></i>
+        <input type="text" id="load-code" class="booking-input" placeholder="LOAD BOOKING CODE">
+        <button onclick="loadBookingCode()" style="background:var(--ios-blue); border:none; width:50px; height:50px; border-radius:14px; color:white;">
+            <i class="fa-solid fa-arrow-right"></i>
+        </button>
+    </div>
+
+    <div class="floating-container">
+        <div class="view-slip-btn" id="view-slip-ui" onclick="openBetslipModal()">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div id="count-badge" style="background:white; color:var(--ios-red); width:24px; height:24px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900;">0</div>
+                <span style="font-weight:900; font-size: 15px; letter-spacing: 0.5px;">VIEW BETSLIP</span>
+            </div>
+            <div id="total-odds-preview" style="font-weight:900; font-size: 16px;">1.00</div>
+        </div>
+    </div>
+
+    <div class="market-overlay" id="booking-result-modal" style="display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.92); backdrop-filter:blur(10px);">
+        <div style="background:#1c1c1e; width:85%; padding:35px 25px; border-radius:32px; text-align:center; border:1px solid rgba(255,255,255,0.05);">
+            <div style="width:70px; height:70px; background:rgba(52, 199, 89, 0.1); color:var(--ios-green); font-size:35px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin: 0 auto 20px;">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <div style="font-weight:900; font-size:20px; margin-bottom:8px;">BOOKING SAVED</div>
+            <div style="color:var(--ash); font-size:13px; margin-bottom:25px;">Code generated successfully</div>
+            
+            <div style="position:relative; background:#2c2c2e; padding:20px; border-radius:20px; border: 1px solid rgba(255,255,255,0.05); margin-bottom:30px;">
+                <div id="generated-code-display" style="font-size:28px; font-weight:900; letter-spacing:4px; color:var(--ios-blue);">------</div>
+                <div onclick="copyBookingCode()" style="position:absolute; right:15px; top:50%; transform:translateY(-50%); color:var(--ash);">
+                    <i class="fa-solid fa-copy"></i>
+                </div>
+            </div>
+            
+            <button onclick="document.getElementById('booking-result-modal').style.display='none'" style="width:100%; background:white; color:black; border:none; padding:18px; border-radius:18px; font-weight:900;">DONE</button>
+        </div>
+    </div>
+
+    <div class="market-overlay" id="market-modal">
+        <div class="modal-live-header">
+            <div style="display:flex; align-items:center; justify-content: space-between; margin-bottom: 20px; padding: 60px 20px 0;">
+                <div onclick="closeMarketModal()" style="background:rgba(255,255,255,0.05); width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                    <i class="fa-solid fa-chevron-left" style="font-size: 18px;"></i>
+                </div>
+                <span style="font-weight:900; color:white; font-size: 15px;">MATCH MARKETS</span>
+                <div style="width:40px;"></div>
+            </div>
+            <div id="modal-header-content"></div>
+        </div>
+        <div id="market-content" style="padding-bottom: 120px; overflow-y: auto;"></div>
+    </div>
+
+    <div class="market-overlay" id="betslip-modal">
+        <div style="padding: 60px 20px 20px; display:flex; justify-content:space-between; align-items:center; background: #000;">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <i class="fa-solid fa-xmark" onclick="closeBetslipModal()" style="font-size: 22px;"></i>
+                <span style="font-weight:900; font-size: 20px;">BETSLIP</span>
+            </div>
+            </div>
+        
+        <div id="slip-items" style="flex:1; padding:20px; overflow-y: auto;"></div>
+
+        <div style="padding:25px; background:#1c1c1e; border-radius: 35px 35px 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,0.5);">
+            <div style="display:flex; justify-content:space-between; margin-bottom: 10px; font-weight: 800; font-size: 17px;">
+                <span style="color:var(--ash)">Total Odds</span>
+                <span id="final-odds-display" style="color:var(--gold)">1.00</span>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; margin-bottom: 20px; font-weight: 700; font-size: 14px;">
+                <span style="color:var(--ash)">Potential Win</span>
+                <span id="potential-win-display" style="color:var(--ios-green)">₦0.00</span>
+            </div>
+
+            <div style="background:#2c2c2e; border-radius:20px; padding:5px 15px; display:flex; align-items:center; margin-bottom:20px;">
+                <span style="font-weight:900; color:var(--ash); margin-right:10px;">₦</span>
+                <input type="number" id="stake-amount" oninput="calculatePotentialWin()" placeholder="Min 100" style="width:100%; background:transparent; border:none; padding:15px 0; color:white; font-weight:900; font-size: 20px; outline: none;">
+            </div>
+            <button id="btn-place-bet" onclick="placeVirtualBet()" style="width:100%; background:var(--ios-green); border:none; padding:22px; border-radius:22px; font-weight:900; font-size: 17px; color: black; box-shadow: 0 10px 25px rgba(52, 199, 89, 0.3);">PLACE BET</button>
+        </div>
+    </div>
+
+    <script>
+        const _supa = getClient();
+        const USER_ID = localStorage.getItem('user_id');
+        let matches = [], teams = {}, userSlip = [], currentTab = 'LIVE', activeModalMatchId = null;
+        let previousState = {}; 
+
+        const MARKET_PICK_ORDER = {
+            'Straight win': ['1', 'X', '2'],
+            'Over/Under 2.5': ['Over', 'Under'],
+            'GG/NG': ['GG', 'NG'],
+            'Double Chance': ['1X', '12', 'X2']
+        };
+
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation';
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${msg}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 400);
+            }, 3000);
+        }
+
+        function copyBookingCode() {
+            const code = document.getElementById('generated-code-display').innerText;
+            if(code === "------") return;
+            navigator.clipboard.writeText(code);
+            showToast("Code copied to clipboard!");
+        }
+
+        window.onload = async () => {
+            if(!USER_ID) { location.href = 'login.html'; return; }
+            await loadTeams();
+            await updateBalance(); // Combined session/balance fetch
+            subscribeToUpdates();
+            setInterval(updateTimers, 1000);
+            setInterval(updateBalance, 5000); // Continuous session guard
+        };
+
+        async function loadTeams() {
+            const { data } = await _supa.from('team_assets').select('*');
+            data?.forEach(t => teams[t.id] = t);
+        }
+
+        function subscribeToUpdates() {
+            _supa.channel('sync').on('postgres_changes', { event: '*', table: 'virtual_matches' }, (payload) => {
+                refreshData(); 
+            }).subscribe();
+            refreshData();
+        }
+
+        async function refreshData() {
+            const { data } = await _supa.from('virtual_matches').select('*').order('start_time', {ascending: true});
+            const newMatches = data || [];
+            
+            newMatches.forEach(m => {
+                const prev = previousState[m.id];
+                if(prev) {
+                    if(prev.home_score !== m.home_score || prev.away_score !== m.away_score) {
+                        m.hasGoal = true; 
+                    }
+                    m.oddMovements = {};
+                    Object.keys(m.odds).forEach(market => {
+                        m.oddMovements[market] = {};
+                        Object.keys(m.odds[market]).forEach(pick => {
+                            const oldVal = parseFloat(prev.odds[market]?.[pick] || 0);
+                            const newVal = parseFloat(m.odds[market][pick]);
+                            if(newVal > oldVal && oldVal !== 0) m.oddMovements[market][pick] = 'UP';
+                            else if(newVal < oldVal && oldVal !== 0) m.oddMovements[market][pick] = 'DOWN';
+                        });
+                    });
+                }
+                previousState[m.id] = JSON.parse(JSON.stringify(m));
+            });
+
+            matches = newMatches;
+            render();
+            if(activeModalMatchId) {
+                updateModalHeader(activeModalMatchId);
+                renderMarkets(activeModalMatchId);
+            }
+            updateSlipUI();
+        }
+
+        function updateTimers() {
+            const now = new Date();
+            matches.forEach(m => {
+                if(m.status === 'LIVE') {
+                    const elapsedSec = Math.floor((now.getTime() - new Date(m.start_time).getTime()) / 1000);
+                    const durationSec = (m.total_duration_mins || 15) * 60;
+                    let virtualMin = Math.floor((elapsedSec / durationSec) * 90);
+                    if (virtualMin >= 90) virtualMin = 90;
+                    let timeText = virtualMin + "'";
+                    const el = document.getElementById(`timer-${m.id}`);
+                    if(el) el.innerText = timeText;
+                    const mel = document.getElementById(`modal-timer-${m.id}`);
+                    if(mel) mel.innerText = timeText;
+                }
+            });
+        }
+
+        function render() {
+            const container = document.getElementById('match-container');
+            const filtered = matches.filter(m => m.status === currentTab || (m.status === 'FT' && currentTab === 'LIVE'));
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:50px; color:var(--ash);">No active ${currentTab.toLowerCase()} matches</div>`;
+                return;
+            }
+            container.innerHTML = filtered.map(m => {
+                const h = teams[m.home_team_id] || { team_name: 'Home', logo_url: '' };
+                const a = teams[m.away_team_id] || { team_name: 'Away', logo_url: '' };
+                const sw = m.odds['Straight win'] || {};
+                const isFT = m.status === 'FT';
+                const isPM = m.status === 'PREMATCH';
+
+                const now = new Date();
+                const elapsedSec = Math.floor((now.getTime() - new Date(m.start_time).getTime()) / 1000);
+                const virtualMin = m.status === 'LIVE' ? Math.floor((elapsedSec / ((m.total_duration_mins || 15) * 60)) * 90) : 0;
+                const isLocked = m.is_locked || isFT || (m.status === 'LIVE' && virtualMin >= 90);
+                
+                const d = new Date(m.start_time);
+                const dayDateStr = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                const timeStr = d.getHours().toString().padStart(2,'0') + ":" + d.getMinutes().toString().padStart(2,'0');
+
+                let timeDisplay = isPM ? `${dayDateStr} • ${timeStr}` : (isFT ? 'FINISHED' : virtualMin + "'");
+
+                return `
+                    <div class="match-card ${isLocked ? 'locked' : ''}" id="card-${m.id}" onclick="openMarketModal('${m.id}')">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="text-align:center; width:35%"><img src="${h.logo_url}" width="35" style="margin-bottom:8px;"><div style="font-size:12px; font-weight:800;">${h.team_name}</div></div>
+                            <div style="text-align:center;">
+                                ${isPM ? '<div class="vs-badge">VS</div>' : `<div class="${m.hasGoal ? 'goal-scored' : ''}" style="font-size:26px; font-weight:900; letter-spacing:-1px; ${isFT ? 'color:var(--gold);' : ''}">${m.home_score}:${m.away_score}</div>`}
+                                <div id="timer-${m.id}" style="font-size:11px; color:var(--ios-red); font-weight:900; margin-top:4px;">${timeDisplay}</div>
+                            </div>
+                            <div style="text-align:center; width:35%"><img src="${a.logo_url}" width="35" style="margin-bottom:8px;"><div style="font-size:12px; font-weight:800;">${a.team_name}</div></div>
+                        </div>
+                        <div class="quick-odds" onclick="event.stopPropagation()">
+                            ${renderOddBtn(m, 'Straight win', '1', sw['1'])}
+                            ${renderOddBtn(m, 'Straight win', 'X', sw['X'])}
+                            ${renderOddBtn(m, 'Straight win', '2', sw['2'])}
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function renderOddBtn(match, market, pick, val) {
+            const isActive = userSlip.some(s => s.matchId === match.id && s.pick === pick && s.market === market);
+            const isMatchLocked = match.is_locked || match.status === 'FT' || (match.locked_markets && match.locked_markets[market] && match.locked_markets[market][pick]);
+            
+            const move = match.oddMovements?.[market]?.[pick];
+            let indicator = '';
+            if(move === 'UP') indicator = '<i class="fa-solid fa-caret-up indicator odd-up"></i>';
+            if(move === 'DOWN') indicator = '<i class="fa-solid fa-caret-down indicator odd-down"></i>';
+
+            return `<div class="odd-btn ${isActive ? 'selected' : ''} ${isMatchLocked ? 'locked' : ''}" 
+                         onclick="toggleSlip('${match.id}', '${market}', '${pick}', ${val})">
+                ${indicator}
+                <div style="font-size:10px; opacity:0.6; font-weight: 800; margin-bottom:2px;">${pick}</div>
+                <div class="odd-val">${isMatchLocked ? '<i class="fa-solid fa-lock" style="font-size:10px"></i>' : (val || '-')}</div>
+            </div>`;
+        }
+
+        function toggleSlip(mId, market, pick, odd) {
+            const m = matches.find(x => x.id === mId);
+            if(!odd || odd === '-' || m.is_locked || m.status === 'FT') return;
+            
+            const existingIndex = userSlip.findIndex(s => s.matchId === mId && s.pick === pick && s.market === market);
+            if(existingIndex > -1) {
+                userSlip.splice(existingIndex, 1);
+            } else {
+                userSlip = userSlip.filter(s => s.matchId !== mId);
+                userSlip.push({ matchId: mId, market, pick, odd: parseFloat(odd), home_id: m.home_team_id, away_id: m.away_team_id });
+            }
+            updateSlipUI();
+            render();
+            if(activeModalMatchId) renderMarkets(activeModalMatchId);
+        }
+
+        function calculatePotentialWin() {
+            const stake = parseFloat(document.getElementById('stake-amount').value) || 0;
+            const totalOdds = userSlip.reduce((acc, s) => acc * s.odd, 1);
+            const potential = stake * totalOdds;
+            document.getElementById('potential-win-display').innerText = "₦" + potential.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        let startX = 0;
+        function updateSlipUI() {
+            const slipUI = document.getElementById('view-slip-ui');
+            const items = document.getElementById('slip-items');
+            const loader = document.getElementById('booking-loader');
+            
+            if(userSlip.length > 0) {
+                slipUI.style.display = 'flex';
+                loader.style.display = 'none';
+                document.getElementById('count-badge').innerText = userSlip.length;
+                let totalOdds = userSlip.reduce((acc, s) => acc * s.odd, 1);
+                document.getElementById('total-odds-preview').innerText = totalOdds.toFixed(2);
+                document.getElementById('final-odds-display').innerText = totalOdds.toFixed(2);
+                calculatePotentialWin();
+                
+                items.innerHTML = userSlip.map((s, index) => `
+                    <div class="slip-item-container" 
+                         ontouchstart="handleTouchStart(event)" 
+                         ontouchmove="handleTouchMove(event, this, ${index})">
+                        <div class="slip-delete-trigger" onclick="removeItem(${index})"><i class="fa-solid fa-trash"></i></div>
+                        <div class="slip-item" id="slip-idx-${index}">
+                            <div style="flex:1">
+                                <div style="font-size:14px; font-weight:900;">${teams[s.home_id]?.team_name} v ${teams[s.away_id]?.team_name}</div>
+                                <div style="font-size:11px; color:var(--ash); margin-top:4px;">${s.market} • <b style="color:var(--ios-blue)">${s.pick}</b></div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-weight:900; color:var(--gold); font-size:16px;">${s.odd.toFixed(2)}</div>
+                            </div>
+                        </div>
+                    </div>`).join('');
+            } else {
+                slipUI.style.display = 'none';
+                loader.style.display = 'flex';
+                if(document.getElementById('betslip-modal').style.display === 'flex') closeBetslipModal();
+            }
+        }
+
+        function handleTouchStart(e) { startX = e.touches[0].clientX; }
+        function handleTouchMove(e, el, idx) {
+            let move = e.touches[0].clientX - startX;
+            let item = document.getElementById(`slip-idx-${idx}`);
+            if(move < -10) item.style.transform = `translateX(-80px)`;
+            if(move > 50) item.style.transform = `translateX(0)`;
+        }
+        function removeItem(idx) {
+            userSlip.splice(idx, 1);
+            updateSlipUI();
+            render();
+        }
+
+        async function loadBookingCode() {
+            const code = document.getElementById('load-code').value.trim().toUpperCase();
+            if(!code) return showToast("Enter a code", "error");
+            const { data } = await _supa.from('virtual_bets').select('selections').eq('booking_code', code).maybeSingle();
+            if(!data) return showToast("Code not found", "error");
+            
+            const ids = data.selections.map(s => s.matchId);
+            const { data: mChecks } = await _supa.from('virtual_matches').select('id, status, start_time').in('id', ids);
+            const now = new Date();
+            if (!mChecks || mChecks.length !== ids.length) return showToast("Matches no longer available", "error");
+            
+            const hasInvalidMatch = mChecks.some(m => m.status !== 'PREMATCH' || now >= new Date(m.start_time));
+            if(hasInvalidMatch) return showToast("Code contains live or expired matches", "error");
+            
+            userSlip = data.selections;
+            updateSlipUI();
+            showToast("Code loaded successfully!");
+        }
+
+        async function placeVirtualBet() {
+            const stake = parseFloat(document.getElementById('stake-amount').value);
+            if(!stake || stake < 100) return showToast("Minimum stake is ₦100", "error");
+            
+            const { data: profile } = await _supa.from('profiles').select('balance').eq('id', USER_ID).single();
+            if(!profile || profile.balance < stake) return showToast("Insufficient funds", "error");
+            
+            const selectionsWithNames = userSlip.map(s => ({
+                ...s,
+                home_name: teams[s.home_id]?.team_name || 'Home Team',
+                away_name: teams[s.away_id]?.team_name || 'Away Team'
+            }));
+
+            const totalOdds = userSlip.reduce((acc, s) => acc * s.odd, 1);
+            const bookingCode = "AVI-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+            
+            const { error } = await _supa.from('virtual_bets').insert({ 
+                user_id: USER_ID, 
+                selections: selectionsWithNames, 
+                stake, 
+                odds: totalOdds, 
+                payout: (stake * totalOdds), 
+                status: 'ONGOING', 
+                booking_code: bookingCode 
+            });
+
+            if(!error) {
+                await _supa.from('profiles').update({ balance: profile.balance - stake }).eq('id', USER_ID);
+                showToast("Bet placed successfully!");
+                document.getElementById('generated-code-display').innerText = bookingCode;
+                document.getElementById('booking-result-modal').style.display = 'flex';
+                userSlip = []; updateSlipUI(); closeBetslipModal(); updateBalance();
+            } else showToast(error.message, "error");
+        }
+
+        async function updateBalance() {
+            const localSessId = localStorage.getItem('my_session_id');
+            const { data, error } = await _supa.from('profiles').select('*').eq('id', USER_ID).single();
+            
+            if(data) {
+                // SESSION GUARD LOGIC
+                if (data.current_session_id && data.current_session_id !== localSessId) {
+                    document.getElementById('sessionModal').style.display = 'flex';
+                    return; 
+                }
+                document.getElementById('user-balance').innerText = "₦" + data.balance.toLocaleString(undefined, {minimumFractionDigits: 2});
+            }
+        }
+
+        function confirmLogout() { 
+            localStorage.clear(); 
+            location.href = 'login.html'; 
+        }
+
+        function setTab(t) { currentTab = t; document.querySelectorAll('.tab').forEach(el => el.classList.remove('active')); document.getElementById(`tab-${t.toLowerCase()}`).classList.add('active'); render(); }
+        
+        function openMarketModal(mId) { 
+            activeModalMatchId = mId; 
+            updateModalHeader(mId); 
+            renderMarkets(mId); 
+            document.getElementById('market-modal').style.display = 'flex'; 
+        }
+        function closeMarketModal() { document.getElementById('market-modal').style.display = 'none'; activeModalMatchId = null; }
+        
+        function openBetslipModal() { 
+            document.getElementById('betslip-modal').style.display = 'flex'; 
+            document.getElementById('view-slip-ui').style.display = 'none';
+        }
+        function closeBetslipModal() { 
+            document.getElementById('betslip-modal').style.display = 'none'; 
+            if(userSlip.length > 0) document.getElementById('view-slip-ui').style.display = 'flex';
+        }
+
+        function renderMarkets(mId) {
+            const m = matches.find(x => x.id === mId);
+            if(!m) return;
+            let html = '';
+            
+            Object.entries(m.odds).forEach(([marketName, options]) => {
+                const preferredOrder = MARKET_PICK_ORDER[marketName] || [];
+                const sortedPicks = Object.entries(options).sort((a, b) => {
+                    const indexA = preferredOrder.indexOf(a[0]);
+                    const indexB = preferredOrder.indexOf(b[0]);
+                    const valA = indexA === -1 ? 99 : indexA;
+                    const valB = indexB === -1 ? 99 : indexB;
+                    return valA - valB;
+                });
+                const gridCols = sortedPicks.length === 3 ? 3 : 2;
+
+                html += `<div style="margin-bottom: 25px;">
+                    <div style="padding: 0 20px 12px; font-size: 12px; font-weight: 900; color: var(--ash); text-transform: uppercase;">${marketName}</div>
+                    <div style="display: grid; gap: 10px; padding: 0 15px; grid-template-columns: repeat(${gridCols}, 1fr)">
+                        ${sortedPicks.map(([pick, val]) => renderOddBtn(m, marketName, pick, val)).join('')}
+                    </div></div>`;
+            });
+            document.getElementById('market-content').innerHTML = html;
+        }
+
+        function updateModalHeader(mId) {
+            const m = matches.find(x => x.id === mId);
+            if(!m) return;
+            const h = teams[m.home_team_id] || { team_name: 'Home', logo_url: '' };
+            const a = teams[m.away_team_id] || { team_name: 'Away', logo_url: '' };
+            const isFT = m.status === 'FT';
+            const isPM = m.status === 'PREMATCH';
+            document.getElementById('modal-header-content').innerHTML = `
+                <div style="display:flex; justify-content:space-around; align-items:center; text-align:center; padding: 20px;">
+                    <div style="flex:1"><img src="${h.logo_url}" width="40"><div style="font-size:12px; font-weight:800; margin-top:5px;">${h.team_name}</div></div>
+                    <div style="flex:1">
+                        ${isPM ? '<div class="vs-badge">VS</div>' : `<div class="${m.hasGoal ? 'goal-scored' : ''}" style="font-size:32px; font-weight:900; letter-spacing:-1px; ${isFT ? 'color:var(--gold);' : ''}">${m.home_score}:${m.away_score}</div>`}
+                        <div id="modal-timer-${m.id}" style="color:var(--ios-red); font-size:12px; font-weight:900;">${isFT ? 'FINISHED' : ""}</div>
+                    </div>
+                    <div style="flex:1"><img src="${a.logo_url}" width="40"><div style="font-size:12px; font-weight:800; margin-top:5px;">${a.team_name}</div></div>
+                </div>`;
+        }
+    </script>
+</body>
+</html>

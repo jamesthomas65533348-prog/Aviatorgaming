@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Bet History - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --ios-blue: #007aff; --ios-red: #ff3b30; --ios-green: #34c759;
+            --ios-dark: #000000; --ash: #8e8e93; --gold: #fbbf24;
+            --card-bg: #1c1c1e;
+            --bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        * { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; outline: none; }
+
+        body { 
+            background: var(--ios-dark); color: white; 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; 
+            margin: 0; padding: 0; min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- NEON FLOATING NOTE --- */
+        #floating-notice {
+            position: fixed; bottom: 20px; left: 20px; right: 20px;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(15px);
+            border-radius: 18px; padding: 15px; z-index: 9999;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            animation: neonPulse 3s infinite ease-in-out;
+            transition: opacity 0.3s ease;
+        }
+        #floating-notice p {
+            margin: 0; font-size: 11px; font-weight: 700; line-height: 1.4;
+            letter-spacing: 0.3px; color: #fff;
+        }
+
+        @keyframes neonPulse {
+            0% { box-shadow: 0 0 15px rgba(0, 122, 255, 0.4); border-color: var(--ios-blue); }
+            50% { box-shadow: 0 0 15px rgba(255, 59, 48, 0.4); border-color: var(--ios-red); }
+            100% { box-shadow: 0 0 15px rgba(0, 122, 255, 0.4); border-color: var(--ios-blue); }
+        }
+
+        /* --- GRADIENT CLASSES --- */
+        .bg-WON { background: linear-gradient(135deg, #34c759 0%, #fbbf24 100%) !important; color: #000 !important; }
+        .bg-LOST { background: #000000 !important; color: var(--ash) !important; border: 1px solid rgba(255,255,255,0.1) !important; }
+        .bg-ONGOING { background: linear-gradient(135deg, #fbbf24 0%, #ffffff 100%) !important; color: #000 !important; }
+
+        .bg-WON span, .bg-WON div:not(.status-pill), .bg-ONGOING span, .bg-ONGOING div:not(.status-pill) { color: #000 !important; }
+        .bg-WON .label, .bg-ONGOING .label { color: rgba(0,0,0,0.5) !important; }
+
+        #custom-alert-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            z-index: 10000; display: none; align-items: center; justify-content: center; padding: 40px;
+        }
+
+        .alert-box {
+            background: #2c2c2e; width: 100%; max-width: 300px;
+            border-radius: 20px; overflow: hidden; text-align: center;
+            animation: alertShow 0.3s var(--bounce);
+        }
+
+        .alert-content { padding: 25px 20px; }
+        .alert-title { font-weight: 900; font-size: 18px; margin-bottom: 8px; }
+        .alert-msg { font-size: 13px; color: var(--ash); line-height: 1.4; }
+
+        .alert-actions { display: flex; border-top: 1px solid rgba(255,255,255,0.1); }
+        .alert-btn {
+            flex: 1; padding: 15px; border: none; background: transparent;
+            color: var(--ios-blue); font-size: 16px; font-weight: 600; cursor: pointer;
+        }
+        .alert-btn.destruct { color: var(--ios-red); font-weight: 800; border-left: 1px solid rgba(255,255,255,0.1); }
+
+        #toast-container {
+            position: fixed; top: 60px; left: 0; right: 0; 
+            display: flex; justify-content: center; pointer-events: none; z-index: 11000;
+        }
+        .toast {
+            background: rgba(44, 44, 46, 0.95); backdrop-filter: blur(10px);
+            padding: 10px 20px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: translateY(-100px); transition: 0.4s var(--bounce);
+        }
+        .toast.show { transform: translateY(0); }
+
+        .header {
+            position: sticky; top: 0; z-index: 1000;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(20px);
+            padding: 50px 20px 15px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .history-container { padding: 15px; padding-bottom: 120px; }
+
+        .bet-card {
+            border-radius: 28px; padding: 22px; margin-bottom: 16px;
+            transition: transform 0.2s var(--bounce);
+            position: relative; overflow: hidden;
+        }
+        .bet-card:active { transform: scale(0.96); }
+
+        .status-pill { font-size: 10px; font-weight: 900; padding: 5px 12px; border-radius: 12px; text-transform: uppercase; background: rgba(0,0,0,0.1); }
+        .bg-LOST .status-pill { background: rgba(255,255,255,0.05); }
+
+        .selection-preview { margin: 15px 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }
+        .preview-item { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+
+        .footer-info { display: flex; justify-content: space-between; align-items: flex-end; }
+        .label { font-size: 9px; color: var(--ash); text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 4px; }
+        .value { font-size: 16px; font-weight: 900; }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: var(--ios-dark); z-index: 5000;
+            display: none; flex-direction: column; 
+            animation: slideUp 0.4s var(--bounce);
+        }
+        .modal-header {
+            padding: 60px 20px 20px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .modal-content { flex: 1; overflow-y: auto; padding: 20px; }
+
+        .ticket-item {
+            border-radius: 24px; padding: 20px; margin-bottom: 15px;
+            position: relative; overflow: hidden;
+        }
+
+        .market-badge {
+            display: inline-block; padding: 4px 10px; background: rgba(0,0,0,0.08);
+            border-radius: 8px; font-size: 11px; font-weight: 900; margin-bottom: 12px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .bg-LOST .market-badge { background: rgba(255,255,255,0.05); color: white; }
+
+        .watermark {
+            position: absolute; top: 15px; right: 15px;
+            font-weight: 900; font-size: 10px; padding: 4px 10px;
+            border-radius: 8px; text-transform: uppercase;
+        }
+        .bg-WON .watermark { background: #000; color: var(--ios-green); }
+        .bg-LOST .watermark { background: rgba(255,59,48,0.2); color: var(--ios-red); }
+        .bg-ONGOING .watermark { background: #000; color: var(--gold); }
+
+        .delete-btn {
+            background: rgba(255, 59, 48, 0.1); color: var(--ios-red); border: none;
+            width: 100%; padding: 18px; border-radius: 18px; font-weight: 900; font-size: 14px;
+            margin-top: 10px; transition: 0.2s;
+        }
+
+        @keyframes alertShow { from { transform: scale(1.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div id="floating-notice">
+        <p>In a multiple (accumulator) bet, if one selection loses, the entire ticket is settled as lost.<br>
+        <span style="opacity: 0.7;">This means all matches in that ticket will show a lost status, even if some individual matches were actually won.</span></p>
+    </div>
+
+    <div id="custom-alert-overlay">
+        <div class="alert-box">
+            <div class="alert-content">
+                <div class="alert-title" id="alert-title">Confirm</div>
+                <div class="alert-msg" id="alert-msg">Are you sure?</div>
+            </div>
+            <div class="alert-actions" id="alert-actions"></div>
+        </div>
+    </div>
+
+    <div class="header">
+        <div style="display:flex; align-items:center; gap:15px;">
+            <div onclick="location.href='virtual.html'" style="background:rgba(255,255,255,0.05); width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                <i class="fa-solid fa-chevron-left" style="font-size: 16px;"></i>
+            </div>
+            <span style="font-weight:900; font-size:22px; letter-spacing: -0.5px;">Bet History</span>
+        </div>
+        <i class="fa-solid fa-rotate-right" id="refresh-icon" onclick="fetchHistory(true)" style="color: var(--ash); font-size: 20px;"></i>
+    </div>
+
+    <div class="history-container" id="history-list">
+        <div style="text-align:center; margin-top:100px; color: var(--ash);">
+            <i class="fa-solid fa-circle-notch fa-spin fa-2x"></i>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="details-modal">
+        <div class="modal-header">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <div onclick="closeModal()" style="background:rgba(255,255,255,0.05); width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                    <i class="fa-solid fa-xmark" style="font-size: 20px;"></i>
+                </div>
+                <div>
+                    <div style="font-weight:900; font-size:17px;">Ticket Details</div>
+                    <div id="modal-code" style="font-size:11px; color:var(--ios-blue); font-weight:800; font-family: monospace;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-content" id="modal-body"></div>
+        <div id="modal-footer" style="padding: 25px; background: #111; border-radius: 32px 32px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.5);"></div>
+    </div>
+
+    <script>
+        const _supa = getClient();
+        const USER_ID = localStorage.getItem('user_id');
+        let currentBets = [];
+
+        window.onload = async () => {
+            if(!USER_ID) return location.href='login.html';
+            fetchHistory();
+            setInterval(() => fetchHistory(), 15000);
+        };
+
+        function showCustomPopup(title, msg, isConfirm, onConfirm) {
+            const overlay = document.getElementById('custom-alert-overlay');
+            const actions = document.getElementById('alert-actions');
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-msg').innerText = msg;
+            if(isConfirm) {
+                actions.innerHTML = `<button class="alert-btn" onclick="closePopup()">Cancel</button><button class="alert-btn destruct" id="confirm-action-btn">Delete</button>`;
+                document.getElementById('confirm-action-btn').onclick = () => { closePopup(); onConfirm(); };
+            } else {
+                actions.innerHTML = `<button class="alert-btn" style="width:100%" onclick="closePopup()">OK</button>`;
+            }
+            overlay.style.display = 'flex';
+        }
+
+        function closePopup() { document.getElementById('custom-alert-overlay').style.display = 'none'; }
+
+        function showToast(msg, icon = 'fa-check-circle') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i class="fa-solid ${icon}" style="color:var(--ios-blue)"></i> ${msg}`;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 2500);
+        }
+
+        async function fetchHistory(isManual = false) {
+            const container = document.getElementById('history-list');
+            const refreshIcon = document.getElementById('refresh-icon');
+            if(isManual) refreshIcon.classList.add('fa-spin');
+
+            const { data, error } = await _supa.from('virtual_bets').select('*').eq('user_id', USER_ID).order('created_at', { ascending: false });
+            
+            if(isManual) refreshIcon.classList.remove('fa-spin');
+            if(isManual) showToast("History Updated", "fa-rotate");
+
+            if (error || !data || data.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:100px 20px; color:var(--ash);"><i class="fa-solid fa-receipt fa-4x" style="opacity:0.05; margin-bottom:20px;"></i><div style="font-weight:900; font-size:18px; color:white;">No History Found</div></div>`;
+                return;
+            }
+
+            currentBets = data;
+            container.innerHTML = data.map(bet => {
+                const sels = Array.isArray(bet.selections) ? bet.selections : [];
+                return `
+                <div class="bet-card bg-${bet.status}" onclick="viewDetails('${bet.id}')">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-family:monospace; font-weight:900; font-size:14px; letter-spacing:1px;">${bet.booking_code}</span>
+                        <div class="status-pill">${bet.status}</div>
+                    </div>
+                    <div class="selection-preview">
+                        ${sels.slice(0, 1).map(s => `
+                            <div class="preview-item">
+                                <span style="font-weight:800;">${s.home_name} v ${s.away_name}</span>
+                                <span style="font-weight:900;">${parseFloat(s.odd).toFixed(2)}</span>
+                            </div>
+                        `).join('')}
+                        ${sels.length > 1 ? `<div style="font-size:10px; font-weight:700; opacity:0.6;">+ ${sels.length - 1} more selections</div>` : ''}
+                    </div>
+                    <div class="footer-info">
+                        <div><span class="label">Stake</span><span class="value">₦${bet.stake.toLocaleString()}</span></div>
+                        <div style="text-align:right;"><span class="label">Potential Win</span><span class="value">₦${bet.payout.toLocaleString()}</span></div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function viewDetails(betId) {
+            const bet = currentBets.find(b => b.id === betId);
+            if(!bet) return;
+            
+            // HIDE NOTICE WHEN OPENING DETAILS
+            document.getElementById('floating-notice').style.display = 'none';
+
+            document.getElementById('modal-code').innerText = bet.booking_code;
+            const body = document.getElementById('modal-body');
+            const sels = Array.isArray(bet.selections) ? bet.selections : [];
+            
+            const { data: liveMatches } = await _supa.from('virtual_matches').select('id, home_score, away_score, status').in('id', sels.map(s => s.matchId));
+
+            body.innerHTML = sels.map(sel => {
+                const matchData = liveMatches?.find(m => m.id === sel.matchId);
+                
+                // FALLBACK LOGIC: If matchData exists (live/active), use it. Otherwise, use sel.score (the stored snapshot).
+                const score = matchData ? `${matchData.home_score} - ${matchData.away_score}` : (sel.score || "0 - 0");
+                
+                const isFinished = matchData?.status === 'FINISHED' || matchData?.status === 'FT' || bet.status !== 'ONGOING';
+                const marketName = sel.market || "MATCH BETTING";
+
+                return `
+                <div class="ticket-item bg-${bet.status}">
+                    <div class="watermark">${bet.status}</div>
+                    <div class="market-badge">${marketName}</div>
+                    
+                    <div style="font-size:16px; font-weight:900; margin-bottom:4px;">${sel.home_name}</div>
+                    <div style="font-size:16px; font-weight:900; margin-bottom:15px;">${sel.away_name}</div>
+                    
+                    <div style="background:rgba(0,0,0,0.05); padding:15px; border-radius:18px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div class="label" style="margin:0">Pick</div>
+                            <div style="font-weight:900; font-size:15px; color:var(--ios-blue)">${sel.pick} <span style="font-size:12px; opacity:0.6; margin-left:4px;">@ ${parseFloat(sel.odd).toFixed(2)}</span></div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div class="label" style="margin:0">${isFinished ? 'Final' : 'Live'}</div>
+                            <div style="font-weight:900; font-size:15px;">${score}</div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            document.getElementById('modal-footer').innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                    <div><span class="label">Total Stake</span><div class="value" style="font-size:22px">₦${bet.stake.toLocaleString()}</div></div>
+                    <div style="text-align:right;"><span class="label">Potential Win</span><div class="value" style="font-size:22px; color:${bet.status === 'WON' ? 'var(--ios-green)' : 'white'}">₦${bet.payout.toLocaleString()}</div></div>
+                </div>
+                ${bet.status !== 'ONGOING' ? `<button class="delete-btn" onclick="deleteBet('${bet.id}')">DELETE FROM HISTORY</button>` : `<div style="text-align:center; padding:15px; border-radius:15px; background:rgba(251,191,36,0.1); color:var(--gold); font-size:12px; font-weight:900;">TICKET IS RUNNING</div>`}
+            `;
+            document.getElementById('details-modal').style.display = 'flex';
+        }
+
+        function closeModal() { 
+            document.getElementById('details-modal').style.display = 'none'; 
+            // SHOW NOTICE AGAIN WHEN RETURNING TO LIST
+            document.getElementById('floating-notice').style.display = 'block';
+        }
+
+        async function deleteBet(id) {
+            showCustomPopup("Delete Ticket", "This action cannot be undone. Remove this ticket?", true, async () => {
+                const { error } = await _supa.from('virtual_bets').delete().eq('id', id);
+                if(!error) { closeModal(); fetchHistory(); showToast("Ticket Deleted", "fa-trash-can"); }
+            });
+        }
+    </script>
+</body>
+</html>
