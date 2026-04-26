@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mission Control - Aviator Genius</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --bg: #050505; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --success: #00ffa3;
+            --gold: #ffcc00;
+            --error: #ff003c;
+        }
+
+        /* --- UI LOCK PROTOCOL --- */
+        * {
+            -webkit-tap-highlight-color: transparent !important;
+            user-select: none !important;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        body { 
+            background: var(--bg);
+            color: white; font-family: 'Inter', sans-serif; 
+            margin: 0; padding: 0; min-height: 100vh;
+            display: flex; flex-direction: column; overflow-x: hidden;
+        }
+
+        /* --- HEADER --- */
+        .support-header { 
+            padding: 25px 20px; display: flex; align-items: center; 
+            background: rgba(5, 5, 5, 0.9); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .back-btn { 
+            width: 45px; height: 45px; border-radius: 15px;
+            background: var(--glass); display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border); transition: 0.2s;
+        }
+        .back-btn:active { transform: scale(0.9); background: var(--primary); }
+
+        /* --- MAIN CONTENT --- */
+        .content-wrap { flex: 1; padding: 40px 20px; text-align: center; }
+        
+        .broadcast-hub {
+            position: relative; display: inline-block; margin-bottom: 35px;
+        }
+        .hub-icon { 
+            font-size: 3.5rem; color: #fff; 
+            filter: drop-shadow(0 0 15px var(--primary)); 
+        }
+        .status-pulse {
+            position: absolute; bottom: 5px; right: 5px;
+            width: 15px; height: 15px; background: var(--success);
+            border-radius: 50%; border: 3px solid var(--bg);
+            box-shadow: 0 0 15px var(--success);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+
+        h1 { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.5px; margin: 0; text-transform: uppercase; }
+        .subtitle { color: #555; font-size: 0.75rem; max-width: 260px; margin: 10px auto 40px; line-height: 1.6; font-weight: 700; }
+
+        /* --- SUPPORT CARD --- */
+        .support-card {
+            background: var(--glass); padding: 35px 25px; border-radius: 35px;
+            border: 1px solid var(--border); max-width: 400px; margin: 0 auto;
+            backdrop-filter: blur(15px);
+        }
+        .label { font-size: 0.55rem; color: var(--primary); text-transform: uppercase; letter-spacing: 3px; font-weight: 900; margin-bottom: 15px; }
+        .mail-text { font-weight: 900; font-size: 1rem; color: #fff; display: block; margin-bottom: 25px; letter-spacing: -0.2px; }
+        
+        .btn-copy { 
+            background: #fff; color: #000; padding: 16px; border-radius: 18px; 
+            font-weight: 900; font-size: 0.75rem; letter-spacing: 1px; width: 100%;
+            border: none; margin-bottom: 12px; transition: 0.2s;
+        }
+        .btn-copy:active { transform: scale(0.96); opacity: 0.8; }
+
+        .btn-chat {
+            background: var(--glass); color: #fff; border: 1px solid var(--border);
+            padding: 16px; border-radius: 18px; width: 100%; font-weight: 900;
+            font-size: 0.75rem; letter-spacing: 1px; transition: 0.2s;
+        }
+        .btn-chat:active { background: var(--primary); }
+
+        /* --- INFO GRID --- */
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 20px; margin-bottom: 40px; }
+        .grid-item {
+            background: var(--glass); border: 1px solid var(--border);
+            padding: 25px 15px; border-radius: 25px; text-align: center; transition: 0.2s;
+        }
+        .grid-item:active { transform: scale(0.95); background: rgba(255,255,255,0.05); }
+        .grid-item i { font-size: 1.5rem; margin-bottom: 12px; color: var(--primary); display: block; }
+        .grid-item span { font-size: 0.6rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #777; }
+
+        /* --- BOTTOM SHEETS --- */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+            display: none; justify-content: center; align-items: flex-end;
+            z-index: 2000; backdrop-filter: blur(10px);
+        }
+        .bottom-sheet {
+            background: #0a0a0f; width: 100%; max-height: 80vh;
+            border-radius: 35px 35px 0 0; border: 1px solid var(--border);
+            display: flex; flex-direction: column; overflow: hidden;
+            animation: slideUp 0.4s cubic-bezier(0, 1, 0, 1);
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .sheet-head { padding: 25px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .sheet-head b { font-weight: 900; letter-spacing: 3px; font-size: 0.7rem; color: var(--primary); }
+        
+        .sheet-content { padding: 30px 25px; overflow-y: auto; color: #888; font-size: 0.8rem; line-height: 1.7; }
+        .sheet-content h3 { color: #fff; margin: 25px 0 10px; font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
+        .sheet-content h3 i { color: var(--primary); font-size: 0.7rem; }
+        
+        .node-info { background: #000; padding: 20px; border-radius: 20px; border: 1px solid var(--border); font-size: 0.65rem; margin-top: 30px; font-family: monospace; color: #444; }
+
+        #toast {
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+            background: var(--success); color: #000; padding: 12px 30px;
+            border-radius: 50px; font-size: 0.7rem; font-weight: 900; display: none; z-index: 3000;
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="toast">CHANNEL ADDRESS COPIED</div>
+
+    <div class="support-header">
+        <div class="back-btn" onclick="location.href='home.html'"><i class="fa-solid fa-chevron-left"></i></div>
+        <div style="margin-left: 20px; font-weight: 900; letter-spacing: 4px; font-size: 0.6rem; color: #444;">COMMAND_STATION</div>
+    </div>
+
+    <div class="content-wrap">
+        <div class="broadcast-hub">
+            <i class="fa-solid fa-tower-cell hub-icon"></i>
+            <div class="status-pulse"></div>
+        </div>
+        <h1>Support Center</h1>
+        <p class="subtitle">Our flight engineers are on standby for manual verification and terminal assistance.</p>
+
+        <div class="support-card">
+            <div class="label">Primary Relay Address</div>
+            <span class="mail-text" id="mail-link">gamingcollective25@gmail.com</span>
+            
+            <button class="btn-copy" onclick="copyMail()">
+                <i class="fa-solid fa-clone"></i> COPY ADDRESS
+            </button>
+
+            <button class="btn-chat" onclick="location.href='help.html'">
+                <i class="fa-solid fa-comments"></i> OPEN LOGS
+            </button>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="grid-item" onclick="openSheet('sysSheet')">
+            <i class="fa-solid fa-microchip"></i>
+            <span>SYSTEM LOGS</span>
+        </div>
+        <div class="grid-item" onclick="openSheet('policySheet')">
+            <i class="fa-solid fa-file-shield"></i>
+            <span>PROTOCOLS</span>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="sysSheet">
+        <div class="bottom-sheet">
+            <div class="sheet-head">
+                <b>TERMINAL_DIAGNOSTICS</b>
+                <i class="fa-solid fa-xmark" style="font-size: 1.2rem;" onclick="closeSheet('sysSheet')"></i>
+            </div>
+            <div class="sheet-content">
+                <h3><i class="fa-solid fa-network-wired"></i> Global Node Sync</h3>
+                <p>Aviator Genius operates on a decentralized relay network. This ensures that even during high-traffic flights, your "Cash Out" signal is recorded with millisecond precision.</p>
+                <h3><i class="fa-solid fa-shield-halved"></i> Data Vault</h3>
+                <p>We utilize AES-256 GCM encryption for all sensitive flight data. Your personal credentials and bank hashes are stored in offline cold-storage vaults.</p>
+                <div class="node-info">
+                    STATION: AG-AFRICA-CENTRAL<br>
+                    LATENCY: 42MS<br>
+                    ENCRYPTION: ACTIVE_RSA_4096<br>
+                    © 2026 GAMING COLLECTIVE
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="policySheet">
+        <div class="bottom-sheet">
+            <div class="sheet-head">
+                <b>FLIGHT_REGULATIONS</b>
+                <i class="fa-solid fa-xmark" style="font-size: 1.2rem;" onclick="closeSheet('policySheet')"></i>
+            </div>
+            <div class="sheet-content">
+                <p style="color: var(--primary); font-weight: 900; font-size: 0.65rem; letter-spacing: 1px;">VER_4.2 // SECURITY ENFORCED</p>
+                
+                <h3><i class="fa-solid fa-user-check"></i> 1. Terminal Ownership</h3>
+                <p>Only one operational pilot license per user is permitted. Use of multiple accounts to manipulate multiplier signals will result in permanent hardware-ID blacklisting.</p>
+                
+                <h3><i class="fa-solid fa-vault"></i> 2. Payout Audit</h3>
+                <p>All payouts undergo a mandatory 1-24 hour security audit to verify the legitimacy of flight patterns. A 10% network maintenance fee applies to all external bank transfers.</p>
+
+                <h3><i class="fa-solid fa-chart-line"></i> 3. Bonus Multipliers</h3>
+                <p>Promotional units (e.g. 600% Top-up) require a 12x flight turnover. Bonus fuel must be converted to real balance through active play before withdrawal logs are unlocked.</p>
+
+                <h3><i class="fa-solid fa-robot"></i> 4. Anti-Bot Protocol</h3>
+                <p>The use of Predictors, AI-Signal bots, or external automation scripts is strictly prohibited. Our heuristic engine detects sub-second precision; botting leads to immediate fund forfeiture.</p>
+
+                <h3><i class="fa-solid fa-signal"></i> 5. Latency Disclaimer</h3>
+                <p>Gaming Collective is not responsible for local connectivity failures. Ensure your device has a stable signal. If a crash occurs before the server receives your "Cash Out," the flight is considered lost.</p>
+                
+                <div style="height: 50px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyMail() {
+            const email = document.getElementById('mail-link').innerText;
+            navigator.clipboard.writeText(email);
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
+
+        function openSheet(id) {
+            document.getElementById(id).style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSheet(id) {
+            document.getElementById(id).style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        window.onclick = function(e) {
+            if (e.target.className === 'modal-overlay') {
+                e.target.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && (e.key === 'u' || e.key === 's' || e.key === 'c' || e.key === 'a')) e.preventDefault();
+        });
+    </script>
+</body>
+</html>

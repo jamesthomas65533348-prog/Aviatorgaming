@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Receipt - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --status-color: #64748b; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        /* --- UI LOCK PROTOCOL --- */
+        * {
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-touch-callout: none;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        body { 
+            margin: 0; padding: 0; min-height: 100vh; 
+            font-family: 'Inter', system-ui, sans-serif; 
+            color: white; transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1); 
+            background: #000; overflow-x: hidden;
+        }
+        
+        /* --- ATMOSPHERIC STATUS GLOWS --- */
+        @keyframes statusPulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.1); }
+        }
+
+        .glow-overlay {
+            position: fixed; top: -10%; left: -10%; width: 120%; height: 60%;
+            z-index: -1; filter: blur(80px); opacity: 0.5;
+            transition: 0.8s;
+        }
+
+        body.PENDING .glow-overlay { background: radial-gradient(circle, #fbbf24 0%, transparent 70%); }
+        body.APPROVED, body.SUCCESS, body.COMPLETED .glow-overlay { background: radial-gradient(circle, #00ffa3 0%, transparent 70%); }
+        body.REJECTED, body.FAILED .glow-overlay { background: radial-gradient(circle, #ff003c 0%, transparent 70%); }
+
+        .header { padding: 35px 20px 20px; display: flex; align-items: center; gap: 20px; }
+        .back-btn { 
+            width: 45px; height: 45px; border-radius: 16px; 
+            background: var(--glass); display: flex; 
+            align-items: center; justify-content: center; 
+            border: 1px solid var(--border); backdrop-filter: blur(10px);
+            transition: 0.2s;
+        }
+        .back-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.1); }
+
+        .detail-card { 
+            margin: 0 20px 40px; padding: 40px 25px; 
+            background: rgba(10, 10, 15, 0.7); border-radius: 35px; 
+            border: 1px solid var(--border); 
+            backdrop-filter: blur(20px); text-align: center;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            animation: cardSlide 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        @keyframes cardSlide { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .type-tag { font-size: 0.55rem; letter-spacing: 3px; font-weight: 900; color: #444; text-transform: uppercase; margin-bottom: 10px; display: block; }
+        .amount { font-size: 2.8rem; font-weight: 900; margin: 10px 0; letter-spacing: -1.5px; }
+        
+        .status-badge { 
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 20px; border-radius: 50px; 
+            font-size: 0.65rem; font-weight: 900; background: var(--status-color); 
+            color: #000; margin: 15px 0 25px; text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .info-grid { 
+            text-align: left; margin-top: 35px; display: grid; gap: 18px; 
+            border-top: 1px solid var(--border); padding-top: 30px; 
+        }
+        .info-item { display: flex; justify-content: space-between; align-items: center; }
+        .info-label { color: #555; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .info-val { font-size: 0.8rem; font-weight: 700; color: #eee; }
+
+        /* --- NEON TIMELINE --- */
+        .timeline { margin: 45px 0 10px 5px; position: relative; padding-left: 40px; text-align: left; }
+        .timeline::before { content: ""; position: absolute; left: 16px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+        .progress-line { 
+            position: absolute; left: 16px; top: 0; width: 2px; 
+            background: var(--status-color); transition: 1.5s height ease-in-out; height: 0;
+            box-shadow: 0 0 10px var(--status-color);
+        }
+        
+        .step { position: relative; margin-bottom: 35px; opacity: 0.2; transition: 0.5s; }
+        .step.active { opacity: 1; }
+        .step::after { 
+            content: ""; position: absolute; left: -30px; top: 3px; 
+            width: 10px; height: 10px; border-radius: 50%; 
+            background: #000; border: 2px solid var(--border); 
+            z-index: 2; transition: 0.4s;
+        }
+        .step.active::after { background: var(--status-color); border-color: var(--status-color); box-shadow: 0 0 10px var(--status-color); }
+        
+        .step-title { font-size: 0.8rem; font-weight: 900; display: block; color: #fff; letter-spacing: 0.5px; }
+        .step-desc { font-size: 0.65rem; color: #555; margin-top: 3px; font-weight: 600; }
+        
+        #reject-view { display: none; padding: 30px 0; }
+        .refund-icon { font-size: 3rem; color: var(--status-color); margin-bottom: 20px; filter: drop-shadow(0 0 15px var(--status-color)); }
+
+        .footer-note { font-size: 0.55rem; color: #333; text-align: center; margin-top: 20px; font-weight: 800; letter-spacing: 1px; }
+    </style>
+</head>
+<body id="main-body" oncontextmenu="return false;">
+
+    <div class="glow-overlay"></div>
+
+    <div class="header">
+        <div class="back-btn" onclick="history.back()"><i class="fa-solid fa-chevron-left"></i></div>
+        <span style="font-weight: 900; letter-spacing: 4px; font-size: 0.6rem; color: #444;">FLIGHT_MANIFEST</span>
+    </div>
+
+    <div class="detail-card">
+        <span id="det-type" class="type-tag">Manifest Loading...</span>
+        <div id="det-amt" class="amount">₦0.00</div>
+        <div id="det-status" class="status-badge">SYNCING...</div>
+
+        <div id="withdraw-flow" style="display:none;">
+            <div class="timeline" id="timeline-box">
+                <div class="progress-line" id="p-line"></div>
+                <div class="step" id="s1">
+                    <span class="step-title">Manifest Created</span>
+                    <span class="step-desc">Request logged in central command</span>
+                </div>
+                <div class="step" id="s2">
+                    <span class="step-title">Signal Clearance</span>
+                    <span class="step-desc">Awaiting node verification</span>
+                </div>
+                <div class="step" id="s3">
+                    <span class="step-title">Deployment Complete</span>
+                    <span class="step-desc">Funds successfully bridged to bank</span>
+                </div>
+            </div>
+            <div id="reject-view">
+                <i class="fa-solid fa-rotate-left refund-icon"></i>
+                <h2 style="margin:0; font-weight: 900; letter-spacing: -1px;">REFUNDED</h2>
+                <p style="font-size: 0.7rem; color: #555; margin-top: 8px; font-weight: 600;">The payout signal failed. All fuel units have been returned to your balance.</p>
+            </div>
+        </div>
+
+        <div class="info-grid" id="info-grid"></div>
+        
+        <div class="footer-note">SECURE_MANIFEST_V4 // ENCRYPTED</div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const tid = urlParams.get('id');
+        const type = urlParams.get('type');
+
+        window.onload = async function() {
+            if(!tid || !type) return;
+            const _supa = getClient();
+            const { data: item } = await _supa.from(type).select('*').eq('id', tid).single();
+            if (item) render(item);
+        };
+
+        function render(item) {
+            const status = (item.status || 'PENDING').toUpperCase();
+            document.body.classList.add(status);
+            
+            let val = item.amount;
+            if (status === 'REJECTED' && item.original_amount) val = item.original_amount;
+            
+            document.getElementById('det-amt').innerText = `₦${parseFloat(val).toLocaleString()}`;
+            
+            // Set Dynamic Status Color
+            let sColor = "#64748b";
+            if(status === 'PENDING') sColor = "#fbbf24";
+            if(['APPROVED', 'SUCCESS', 'COMPLETED'].includes(status)) sColor = "#00ffa3";
+            if(['REJECTED', 'FAILED'].includes(status)) sColor = "#ff003c";
+            
+            document.documentElement.style.setProperty('--status-color', sColor);
+            
+            const badge = document.getElementById('det-status');
+            badge.innerHTML = `<i class="fa-solid fa-circle-dot" style="font-size:0.5rem"></i> &nbsp; ${status}`;
+            
+            document.getElementById('det-type').innerText = type === 'deposits' ? 'Refuel Manifest' : 'Payout Manifest';
+
+            const grid = document.getElementById('info-grid');
+            let rows = `
+                <div class="info-item"><span class="info-label">Timestamp</span><span class="info-val">${new Date(item.created_at).toLocaleString('en-NG')}</span></div>
+                <div class="info-item"><span class="info-label">Manifest ID</span><span class="info-val">#${item.id.toString().slice(-8).toUpperCase()}</span></div>
+            `;
+            
+            if (type === 'withdrawals') {
+                document.getElementById('withdraw-flow').style.display = 'block';
+                rows += `
+                    <div class="info-item"><span class="info-label">Target Hub</span><span class="info-val">${item.bank_name}</span></div>
+                    <div class="info-item"><span class="info-label">Node Address</span><span class="info-val">****${item.acc_num.slice(-4)}</span></div>
+                `;
+                setTimeout(() => updateTimeline(status), 300);
+            }
+            grid.innerHTML = rows;
+        }
+
+        function updateTimeline(status) {
+            const line = document.getElementById('p-line');
+            if (status === 'REJECTED' || status === 'FAILED') {
+                document.getElementById('timeline-box').style.display = 'none';
+                document.getElementById('reject-view').style.display = 'block';
+            } else if (status === 'PENDING') {
+                document.getElementById('s1').classList.add('active');
+                document.getElementById('s2').classList.add('active');
+                line.style.height = '42px'; // Height of first step gap
+            } else {
+                document.getElementById('s1').classList.add('active');
+                document.getElementById('s2').classList.add('active');
+                document.getElementById('s3').classList.add('active');
+                line.style.height = '100%';
+                document.getElementById('s3').querySelector('.step-title').innerHTML += ' <i class="fa-solid fa-check-double" style="margin-left:5px; color:var(--status-color)"></i>';
+            }
+        }
+
+        // Global Block Protocol
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && (e.key === 'u' || e.key === 's' || e.key === 'c' || e.key === 'a')) e.preventDefault();
+        });
+    </script>
+</body>
+</html>

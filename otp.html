@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Verify - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --accent: #ff003c; 
+            --bg: #050505; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --success: #00ffa3;
+            --error: #ff2d55;
+        }
+
+        * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        input { user-select: auto !important; -webkit-user-select: auto !important; }
+
+        body { 
+            background: var(--bg); color: white; display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; margin: 0; overflow: hidden;
+            background-image: radial-gradient(circle at 50% 50%, rgba(255, 0, 60, 0.07) 0%, transparent 70%);
+        }
+
+        .card { 
+            background: var(--glass); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            padding: 40px 25px; border-radius: 45px; width: 92%; max-width: 400px; 
+            border: 1px solid rgba(255, 255, 255, 0.08); text-align: center; 
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+            animation: slideUp 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        .icon-box {
+            width: 70px; height: 70px; background: rgba(255, 0, 60, 0.1); 
+            border-radius: 20px; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 20px; color: var(--accent); font-size: 1.8rem;
+            border: 1px solid rgba(255, 0, 60, 0.2);
+        }
+
+        h2 { font-size: 1.6rem; font-weight: 900; margin: 0; letter-spacing: -1px; }
+        p { font-size: 0.85rem; color: #666; margin: 10px 0 30px; line-height: 1.6; }
+        p b { color: #aaa; }
+
+        /* --- SECURE OTP INPUT --- */
+        .otp-container { position: relative; margin-bottom: 25px; }
+        
+        #otp-input { 
+            width: 100%; padding: 20px; border-radius: 20px; border: 2px solid rgba(255, 255, 255, 0.05); 
+            text-align: center; font-size: 2.2rem; letter-spacing: 15px; 
+            font-weight: 900; background: #fff; color: #000; 
+            outline: none; transition: 0.3s;
+        }
+        #otp-input:focus { border-color: var(--accent); box-shadow: 0 0 25px rgba(255, 0, 60, 0.3); }
+
+        .verify-btn { 
+            width: 100%; padding: 18px; background: var(--accent); color: white; border: none; border-radius: 20px; 
+            font-weight: 800; font-size: 1rem; cursor: pointer; transition: 0.3s;
+            box-shadow: 0 10px 20px rgba(255, 0, 60, 0.2);
+        }
+        .verify-btn:active { transform: scale(0.95); }
+        .verify-btn:disabled { opacity: 0.4; pointer-events: none; }
+
+        .timer-box { margin-top: 25px; font-size: 0.8rem; font-weight: 600; color: #444; }
+        .timer-box span { color: var(--accent); }
+        .resend-btn { color: var(--accent); cursor: pointer; text-decoration: underline; display: none; }
+
+        #toast { 
+            position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); 
+            padding: 15px 25px; border-radius: 25px; z-index: 9999; font-weight: 700; font-size: 0.85rem; color: white;
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1);
+            transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 10px;
+        }
+        #toast.show { bottom: 40px; }
+
+        .shake { animation: shake 0.4s ease; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="toast"></div>
+
+    <div class="card" id="otp-card">
+        <div class="icon-box">
+            <i class="fa-solid fa-envelope-open-text"></i>
+        </div>
+        <h2>Verify Inbox</h2>
+        <p>Security code sent to:<br><b id="display-email">loading...</b></p>
+        
+        <div class="otp-container">
+            <input type="number" id="otp-input" placeholder="000000" 
+                   oninput="checkAutoSubmit(this)" pattern="\d*">
+        </div>
+        
+        <button id="v-btn" class="verify-btn" onclick="handleVerify()">
+            CONFIRM ACCESS
+        </button>
+
+        <div class="timer-box">
+            <div id="timer-cont">Resend code in <span id="timer">03:00</span></div>
+            <div id="resend-btn" class="resend-btn" onclick="resendCode()">Request New Code</div>
+        </div>
+    </div>
+
+    <script>
+        (function(){ emailjs.init("GeCipLr0kFPCN8feN"); })();
+
+        let _supa;
+        const myEmail = localStorage.getItem('user_email');
+        let timerSeconds = 180;
+        let countdown;
+
+        window.onload = () => {
+            _supa = getClient();
+            if (!myEmail) { location.href='register.html'; return; }
+            document.getElementById('display-email').innerText = myEmail;
+            startTimer();
+        };
+
+        function startTimer() {
+            clearInterval(countdown);
+            const timerDisplay = document.getElementById('timer');
+            const timerCont = document.getElementById('timer-cont');
+            const resendBtn = document.getElementById('resend-btn');
+            
+            resendBtn.style.display = 'none';
+            timerCont.style.display = 'block';
+            
+            let time = timerSeconds;
+            countdown = setInterval(() => {
+                let mins = Math.floor(time / 60);
+                let secs = time % 60;
+                timerDisplay.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                if (--time < 0) {
+                    clearInterval(countdown);
+                    timerCont.style.display = 'none';
+                    resendBtn.style.display = 'block';
+                }
+            }, 1000);
+        }
+
+        function showToast(msg, isSuccess) {
+            const t = document.getElementById('toast');
+            t.innerHTML = isSuccess ? `<i class="fa-solid fa-check-circle" style="color:var(--success)"></i> ${msg}` : `<i class="fa-solid fa-times-circle" style="color:var(--error)"></i> ${msg}`;
+            t.style.background = "rgba(10, 10, 10, 0.95)";
+            t.classList.add("show");
+            setTimeout(() => t.classList.remove("show"), 3000);
+        }
+
+        function checkAutoSubmit(el) {
+            el.value = el.value.slice(0, 6);
+            if (el.value.length === 6) {
+                handleVerify();
+            }
+        }
+
+        async function resendCode() {
+            const btn = document.getElementById('resend-btn');
+            btn.style.pointerEvents = 'none';
+            btn.innerText = "SENDING...";
+
+            const newOTP = Math.floor(100000 + Math.random() * 900000);
+
+            try {
+                await emailjs.send('service_huev2pt', 'template_r50pcwk', {
+                    email: myEmail,
+                    passcode: newOTP
+                });
+                localStorage.setItem('pending_otp', newOTP);
+                showToast("New code delivered", true);
+                startTimer();
+            } catch (e) {
+                showToast("Network failure", false);
+            }
+            btn.innerText = "Request New Code";
+            btn.style.pointerEvents = 'auto';
+        }
+
+        async function handleVerify() {
+            const input = document.getElementById('otp-input');
+            const btn = document.getElementById('v-btn');
+            const card = document.getElementById('otp-card');
+            const correctOTP = localStorage.getItem('pending_otp');
+
+            if (input.value.length < 6) return;
+
+            btn.disabled = true;
+            btn.innerText = "AUTHENTICATING...";
+
+            if (input.value === String(correctOTP)) {
+                try {
+                    const { error } = await _supa
+                        .from('profiles')
+                        .update({ otp_status: 'VERIFIED' })
+                        .eq('email', myEmail);
+
+                    if (error) throw error;
+                    
+                    showToast("Identity Verified!", true);
+                    setTimeout(() => location.href='login.html', 1500);
+                } catch (e) {
+                    showToast("Sync Failed", false);
+                    btn.disabled = false;
+                    btn.innerText = "CONFIRM ACCESS";
+                }
+            } else {
+                card.classList.add('shake');
+                setTimeout(() => card.classList.remove('shake'), 400);
+                showToast("Invalid Security Code", false);
+                input.value = "";
+                btn.disabled = false;
+                btn.innerText = "CONFIRM ACCESS";
+            }
+        }
+    </script>
+</body>
+</html>

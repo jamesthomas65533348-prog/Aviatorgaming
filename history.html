@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flight Logs - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --bg: #050505; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --success: #00ffa3; 
+            --warning: #facc15; 
+            --error: #ff003c; 
+            --text-muted: #555; 
+            --gold: #ffcc00;
+        }
+
+        /* --- ANTI-COPY & UI LOCK --- */
+        * { 
+            -webkit-tap-highlight-color: transparent !important; 
+            user-select: none !important; 
+            -webkit-user-select: none !important;
+            box-sizing: border-box; 
+            outline: none;
+        }
+
+        body { 
+            background: var(--bg);
+            color: white; font-family: 'Inter', sans-serif; 
+            margin: 0; padding: 0; min-height: 100vh;
+            transition: all 0.4s ease;
+        }
+
+        /* --- SCANLINE EFFECT --- */
+        body::after {
+            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 3px 100%; z-index: 1000; pointer-events: none;
+        }
+
+        .history-header {
+            padding: 30px 20px 15px; display: flex; align-items: center;
+            background: rgba(5, 5, 5, 0.9); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .back-btn { 
+            width: 45px; height: 45px; border-radius: 15px; 
+            background: var(--glass); display: flex; align-items: center; 
+            justify-content: center; border: 1px solid var(--border);
+            color: #fff; transition: 0.2s;
+        }
+        .back-btn:active { transform: scale(0.9); background: var(--primary); }
+
+        .tab-wrapper { padding: 20px 20px 10px; }
+        .tabs { 
+            display: flex; background: #000; border-radius: 20px; 
+            padding: 5px; border: 1px solid var(--border); 
+        }
+        .tab { 
+            flex: 1; padding: 12px; text-align: center; border-radius: 15px; 
+            font-size: 0.65rem; font-weight: 900; transition: 0.3s; 
+            color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; 
+        }
+        .tab.active { background: var(--primary); color: white; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+
+        /* --- NOTICE CARD --- */
+        .notice-card {
+            margin: 0 20px 20px; background: rgba(255, 0, 60, 0.05);
+            border: 1px solid rgba(255, 0, 60, 0.1); border-radius: 20px;
+            padding: 18px; display: none; animation: slideIn 0.4s ease;
+        }
+        @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .notice-title { font-weight: 900; font-size: 0.6rem; color: var(--error); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 5px; display: block; }
+        .notice-body { font-size: 0.7rem; color: #888; line-height: 1.5; font-weight: 500; }
+
+        .history-list { display: flex; flex-direction: column; gap: 12px; padding: 10px 20px 100px; }
+
+        .log-card { 
+            background: var(--glass); padding: 20px; border-radius: 24px; 
+            border: 1px solid var(--border); display: flex; justify-content: space-between; 
+            align-items: center; position: relative; overflow: hidden;
+            transition: 0.3s;
+        }
+        .log-card:active { transform: scale(0.97); background: rgba(255,255,255,0.05); }
+
+        .log-info { display: flex; flex-direction: column; gap: 8px; }
+        .meta-tag { font-size: 0.55rem; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+        .amount-text { font-weight: 900; font-size: 1.2rem; letter-spacing: -0.5px; color: #fff; }
+        .date-text { font-size: 0.6rem; color: var(--text-muted); font-weight: 700; }
+
+        .status-pill { 
+            font-size: 0.55rem; font-weight: 900; padding: 8px 14px; 
+            border-radius: 12px; text-transform: uppercase; letter-spacing: 1.5px; 
+        }
+        .st-PENDING { background: rgba(250, 204, 21, 0.1); color: var(--warning); border: 1px solid rgba(250, 204, 21, 0.2); }
+        .st-SUCCESS, .st-COMPLETED, .st-APPROVED { background: rgba(0, 255, 163, 0.1); color: var(--success); border: 1px solid rgba(0, 255, 163, 0.2); }
+        .st-FAILED, .st-REJECTED { background: rgba(255, 0, 60, 0.1); color: var(--error); border: 1px solid rgba(255, 0, 60, 0.2); }
+
+        .loader-ring { width: 35px; height: 35px; border: 3px solid var(--glass); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 80px auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state { text-align:center; margin-top:100px; opacity:0.2; filter: grayscale(1); }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div class="history-header">
+        <div class="back-btn" onclick="location.href='home.html'">
+            <i class="fa-solid fa-chevron-left"></i>
+        </div>
+        <div style="font-weight: 900; letter-spacing: 4px; font-size: 0.6rem; margin-left: 20px; color: var(--text-muted);">FLIGHT_DATA_LOGS</div>
+    </div>
+
+    <div class="tab-wrapper">
+        <div class="tabs">
+            <div class="tab active" id="tab-dep" onclick="switchTab('deposits')">Refuels</div>
+            <div class="tab" id="tab-wit" onclick="switchTab('withdrawals')">Payouts</div>
+        </div>
+    </div>
+
+    <div id="payout-notice" class="notice-card">
+        <span class="notice-title"><i class="fa-solid fa-triangle-exclamation"></i> Temporal Processing Notice</span>
+        <div class="notice-body">
+            Weekend withdrawal requests (Fri–Sun) are queued for processing during the standard flight window (Mon–Thu).
+        </div>
+    </div>
+
+    <div id="history-container" class="history-list"></div>
+
+    <script>
+        var _supa; 
+        var userEmail = localStorage.getItem('user_email');
+
+        window.onload = function() { 
+            _supa = getClient(); 
+            loadHistory('deposits'); 
+        };
+
+        function switchTab(type) {
+            const isDep = type === 'deposits';
+            document.getElementById('tab-dep').classList.toggle('active', isDep);
+            document.getElementById('tab-wit').classList.toggle('active', !isDep);
+            
+            document.getElementById('payout-notice').style.display = isDep ? 'none' : 'block';
+
+            // Change global accent color based on tab
+            const accentColor = isDep ? '#007bff' : '#ff003c';
+            document.documentElement.style.setProperty('--primary', accentColor);
+            
+            loadHistory(type);
+        }
+
+        async function loadHistory(table) {
+            const container = document.getElementById('history-container');
+            container.innerHTML = '<div class="loader-ring"></div>';
+            
+            const { data, error } = await _supa.from(table)
+                .select('*')
+                .eq('email', userEmail)
+                .order('created_at', { ascending: false });
+            
+            if (error || !data || data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-box-archive" style="font-size:3rem; margin-bottom:15px;"></i>
+                        <p style="font-weight:900; letter-spacing:2px; font-size:0.7rem;">NO_RECORDS_FOUND</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = data.map(item => {
+                const status = (item.status || 'PENDING').toUpperCase();
+                let displayAmount = item.amount;
+                
+                if (table === 'withdrawals' && status === 'REJECTED' && item.original_amount) {
+                    displayAmount = item.original_amount;
+                }
+
+                let typeLabel = table === 'deposits' ? 'Base Station Refuel' : 'External Payout';
+                let typeIcon = table === 'deposits' ? 'fa-gas-pump' : 'fa-building-columns';
+                let labelColor = "var(--text-muted)";
+
+                if (table === 'deposits' && (item.flw_ref || status === 'COMPLETED' || status === 'SUCCESS')) {
+                    typeLabel = 'Instant Fusion Refuel';
+                    typeIcon = 'fa-bolt';
+                    labelColor = "var(--gold)";
+                }
+
+                return `
+                <div class="log-card" onclick="location.href='history-detail.html?id=${item.id}&type=${table}'" 
+                     style="border-left: 4px solid ${status === 'REJECTED' ? 'var(--error)' : (status === 'PENDING' ? 'var(--warning)' : 'var(--success)')}">
+                    <div class="log-info">
+                        <span class="meta-tag" style="color: ${labelColor}">
+                            <i class="fa-solid ${typeIcon}"></i> ${typeLabel}
+                        </span>
+                        <span class="amount-text">₦${parseFloat(displayAmount).toLocaleString()}</span>
+                        <span class="date-text">${new Date(item.created_at).toLocaleDateString('en-NG', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</span>
+                    </div>
+                    <div class="status-pill st-${status}">${status}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // Block inspections
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && (e.key === 'u' || e.key === 's' || e.key === 'c' || e.key === 'a')) e.preventDefault();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Terminal - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --accent: #ff003c; 
+            --bg: #050505; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --success: #00ffa3;
+        }
+
+        /* --- ANTI-COPY & HIGHLIGHT PROTOCOL --- */
+        * { 
+            -webkit-tap-highlight-color: transparent !important; 
+            box-sizing: border-box; 
+            font-family: 'Inter', sans-serif;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+        }
+
+        body { background: var(--bg); color: white; margin: 0; overflow-x: hidden; min-height: 100vh; }
+
+        body::after {
+            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(255,0,60,0.03) 1px, transparent 1px), 
+                        linear-gradient(90deg, rgba(255,0,60,0.03) 1px, transparent 1px);
+            background-size: 20px 20px; z-index: -1;
+        }
+
+        .header-nav { padding: 30px 20px 10px; display: flex; justify-content: space-between; align-items: center; }
+        .back-circle {
+            width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center; background: var(--glass);
+        }
+
+        .profile-module { display: flex; padding: 20px; gap: 20px; align-items: flex-end; }
+        .pfp-frame { position: relative; width: 110px; height: 110px; flex-shrink: 0; }
+        .pfp-img {
+            width: 100%; height: 100%; object-fit: cover; border-radius: 20px;
+            border: 2px solid var(--border); transform: rotate(-3deg);
+        }
+        .edit-tag {
+            position: absolute; top: -10px; right: -10px; background: var(--accent);
+            padding: 8px; border-radius: 10px; font-size: 0.7rem; box-shadow: 0 5px 15px rgba(255,0,60,0.4);
+        }
+        .identity-info { flex: 1; padding-bottom: 5px; }
+        .identity-info h1 { margin: 0; font-size: 1.8rem; font-weight: 900; letter-spacing: -1px; }
+        .rank-label { 
+            color: var(--accent); font-size: 0.65rem; font-weight: 800; 
+            text-transform: uppercase; letter-spacing: 2px; display: block; margin-top: 4px;
+        }
+
+        /* --- STAT MODULES --- */
+        .stats-scroller {
+            display: flex; gap: 12px; overflow-x: auto; padding: 10px 20px;
+            scrollbar-width: none;
+        }
+        .stats-scroller::-webkit-scrollbar { display: none; }
+        
+        .module-card {
+            min-width: 140px; background: var(--glass); border: 1px solid var(--border);
+            padding: 15px; border-radius: 20px; position: relative; overflow: hidden;
+        }
+        .module-card::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--accent);
+        }
+        .mod-title { font-size: 0.55rem; color: #555; font-weight: 800; text-transform: uppercase; }
+        .mod-value { font-size: 0.9rem; font-weight: 700; margin-top: 5px; display: block; }
+
+        /* --- KEYCARD --- */
+        .keycard-container { margin: 20px; }
+        .keycard {
+            background: linear-gradient(135deg, #111 0%, #050505 100%);
+            border: 1px solid var(--border); border-radius: 25px; padding: 25px;
+            position: relative; overflow: hidden;
+        }
+        .keycard-chip {
+            width: 40px; height: 30px; background: linear-gradient(45deg, #444, #222);
+            border-radius: 5px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .keycard-label { font-size: 0.6rem; color: #444; font-weight: 800; text-transform: uppercase; }
+        .keycard-code { 
+            font-family: monospace; font-size: 1.4rem; color: #fff; font-weight: 900; 
+            letter-spacing: 2px; margin-top: 5px; display: block;
+        }
+        .copy-trigger { position: absolute; bottom: 25px; right: 25px; color: var(--accent); font-size: 1.2rem; }
+
+        /* --- ACTION LIST --- */
+        .settings-list { padding: 10px 20px 100px; }
+        .action-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px; background: var(--glass); border: 1px solid var(--border);
+            border-radius: 20px; margin-bottom: 10px;
+        }
+        .action-label { font-size: 0.85rem; font-weight: 600; color: #ccc; }
+        .action-data { font-size: 0.8rem; color: #666; }
+
+        /* --- TOAST --- */
+        #toast {
+            position: fixed; left: 20px; right: 20px; bottom: -100px;
+            background: var(--accent); color: white; padding: 20px;
+            border-radius: 20px; font-weight: 800; font-size: 0.85rem;
+            text-align: center; transition: 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 15px 30px rgba(255,0,60,0.3); z-index: 9999;
+        }
+        #toast.active { bottom: 30px; }
+
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="toast">SYSTEM_UPDATE</div>
+
+    <div class="header-nav">
+        <div class="back-circle" onclick="location.href='home.html'">
+            <i class="fa-solid fa-arrow-left"></i>
+        </div>
+        <div style="font-size: 0.6rem; font-weight: 900; color: #333; letter-spacing: 2px;">CORE_TERMINAL_V2.1</div>
+    </div>
+
+    <div class="profile-module">
+        <div class="pfp-frame">
+            <img id="pfp" src="https://ui-avatars.com/api/?name=User&background=111&color=ff003c" class="pfp-img">
+            <label for="file-input" class="edit-tag"><i class="fa-solid fa-camera"></i></label>
+            <input type="file" id="file-input" style="display:none" accept="image/*" onchange="uploadPfp()">
+        </div>
+        <div class="identity-info">
+            <span class="rank-label" id="rank-name">Rookie Pilot</span>
+            <h1 id="display-name">---</h1>
+        </div>
+    </div>
+
+    <div class="stats-scroller">
+        <div class="module-card">
+            <span class="mod-title">Fuel Reserve</span>
+            <span class="mod-value" id="val-balance" style="color:var(--success)">₦ 0.00</span>
+        </div>
+        <div class="module-card">
+            <span class="mod-title">Connection</span>
+            <span class="mod-value" style="color:var(--success)">ENCRYPTED</span>
+        </div>
+        <div class="module-card">
+            <span class="mod-title">Clearance</span>
+            <span class="mod-value" id="acc-type">LVL_01</span>
+        </div>
+    </div>
+
+    <div class="keycard-container">
+        <div class="keycard">
+            <div class="keycard-chip"></div>
+            <span class="keycard-label">Unique Access Key</span>
+            <span class="keycard-code" id="p-code">--------</span>
+            <i class="fa-solid fa-lock copy-trigger" style="opacity: 0.3;"></i>
+        </div>
+    </div>
+
+    <div class="settings-list">
+        <div class="action-item">
+            <span class="action-label">Identifier</span>
+            <span class="action-data" id="val-email">---</span>
+        </div>
+        <div class="action-item">
+            <span class="action-label">NIN Protocol</span>
+            <span class="action-data" id="val-nin" style="color:var(--success)">SECURED</span>
+        </div>
+        <div class="action-item" onclick="showToast('NODE_ID: ' + Math.random().toString(36).substring(7).toUpperCase())">
+            <span class="action-label">Terminal ID</span>
+            <span class="action-data" id="terminal-id">...</span>
+        </div>
+    </div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+
+        window.onload = function() {
+            if(!userEmail) { location.href='login.html'; return; }
+            _supa = getClient();
+            loadProfile();
+            document.getElementById('terminal-id').innerText = Math.random().toString(36).substring(2, 10).toUpperCase();
+        };
+
+        async function loadProfile() {
+            var { data, error } = await _supa.from('profiles').select('*').eq('email', userEmail).single();
+            if(data) {
+                const namePart = data.email.split('@')[0];
+                document.getElementById('display-name').innerText = data.full_name || (namePart.charAt(0).toUpperCase() + namePart.slice(1));
+                document.getElementById('val-email').innerText = data.email;
+                document.getElementById('p-code').innerText = data.profile_code || "GEN-X";
+                
+                // BALANCE LOGIC
+                const bal = data.balance || 0;
+                document.getElementById('val-balance').innerText = "₦ " + bal.toLocaleString();
+
+                if(data.avatar_url) document.getElementById('pfp').src = data.avatar_url;
+
+                if(data.role === 'ADMIN') {
+                    document.getElementById('rank-name').innerText = "ELITE COMMANDER";
+                    document.getElementById('acc-type').innerText = "ADMIN_LEVEL";
+                    document.getElementById('acc-type').style.color = "var(--accent)";
+                }
+            }
+        }
+
+        async function uploadPfp() {
+            var file = document.getElementById('file-input').files[0];
+            if(!file) return;
+            showToast("UPLOADING BIOMETRICS...");
+            var name = "pfp_" + Date.now();
+            var { data, error } = await _supa.storage.from('avatars').upload(name, file);
+            if(error) return showToast("SYNC ERROR");
+            var url = _supa.storage.from('avatars').getPublicUrl(name).data.publicUrl;
+            await _supa.from('profiles').update({ avatar_url: url }).eq('email', userEmail);
+            document.getElementById('pfp').src = url;
+            showToast("IDENTITY UPDATED");
+        }
+
+        function showToast(m) {
+            const t = document.getElementById('toast');
+            t.innerText = m;
+            t.classList.add('active');
+            setTimeout(() => t.classList.remove('active'), 3000);
+        }
+    </script>
+</body>
+</html>

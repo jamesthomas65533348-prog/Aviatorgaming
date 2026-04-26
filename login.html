@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Login - Aviator Genius</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="config.js"></script>
+
+    <style>
+        :root { 
+            --accent: #ff003c; 
+            --bg: #050505; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --success: #00ffa3;
+            --error: #ff2d55;
+            --spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* Telegram-style Spring */
+        }
+
+        * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        input { user-select: auto !important; -webkit-user-select: auto !important; }
+
+        body { 
+            background: var(--bg); color: white; display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; margin: 0; overflow: hidden;
+            background-image: radial-gradient(circle at 50% 50%, rgba(255, 0, 60, 0.08) 0%, transparent 70%);
+        }
+
+        .card { 
+            background: var(--glass); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            padding: 45px 30px; border-radius: 45px; width: 92%; max-width: 400px; 
+            border: 1px solid var(--border); text-align: center; 
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+            animation: springIn 0.8s var(--spring);
+        }
+
+        @keyframes springIn { 
+            from { opacity: 0; transform: translateY(40px) scale(0.9); } 
+            to { opacity: 1; transform: translateY(0) scale(1); } 
+        }
+
+        .logo-box {
+            width: 60px; height: 60px; background: rgba(255, 0, 60, 0.1); 
+            border-radius: 20px; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 25px; color: var(--accent); font-size: 1.5rem;
+            border: 1px solid rgba(255, 0, 60, 0.2);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 0, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0); }
+        }
+
+        h2 { font-size: 1.8rem; font-weight: 900; margin: 0; letter-spacing: -1px; }
+        .subtitle { font-size: 0.85rem; color: #666; margin: 10px 0 35px; }
+
+        .input-group { position: relative; margin-bottom: 20px; }
+        .input-group i:not(.eye-icon) {
+            position: absolute; left: 20px; top: 50%;
+            transform: translateY(-50%); color: #444; font-size: 1rem; transition: 0.3s;
+            z-index: 2;
+        }
+        
+        input { 
+            width: 100%; padding: 18px 55px 18px 55px; 
+            border-radius: 22px; border: 1px solid var(--border); 
+            background: rgba(255, 255, 255, 0.02); color: white; 
+            font-size: 1rem; outline: none; transition: 0.4s var(--spring);
+            position: relative;
+        }
+
+        input:focus { border-color: var(--accent); background: rgba(255, 255, 255, 0.05); transform: scale(1.02); }
+        input:focus + i { color: var(--accent); }
+
+        /* Perfect Eye Alignment */
+        .eye-btn {
+            position: absolute; right: 20px; top: 50%; 
+            transform: translateY(-50%); color: #444; cursor: pointer;
+            transition: 0.2s; padding: 5px; z-index: 3;
+        }
+        .eye-btn.active { color: var(--accent); }
+
+        /* Login Button & Plane Loader */
+        .login-btn { 
+            width: 100%; height: 60px; background: var(--accent); color: white; border: none; border-radius: 22px; 
+            font-weight: 800; font-size: 1rem; text-transform: uppercase;
+            cursor: pointer; margin-top: 10px; position: relative;
+            box-shadow: 0 10px 25px rgba(255, 0, 60, 0.2);
+            transition: 0.4s var(--spring); overflow: hidden;
+        }
+        .login-btn:active { transform: scale(0.95); }
+        .login-btn:disabled { opacity: 0.8; cursor: default; }
+
+        .loader-content {
+            display: none; align-items: center; justify-content: center; gap: 10px;
+        }
+        .plane-spinner {
+            animation: planeFly 1.5s infinite linear; font-size: 1.2rem;
+        }
+        @keyframes planeFly {
+            0% { transform: rotate(0deg) translateX(0); }
+            50% { transform: rotate(180deg) translateX(3px); }
+            100% { transform: rotate(360deg) translateX(0); }
+        }
+
+        #toast { 
+            position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); 
+            padding: 16px 25px; border-radius: 25px; z-index: 9999; font-weight: 700; font-size: 0.85rem; color: white;
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1);
+            transition: 0.6s var(--spring); display: flex; align-items: center; gap: 10px;
+        }
+        #toast.show { bottom: 40px; }
+
+        .footer-link { margin-top: 30px; font-size: 0.85rem; color: #555; cursor: pointer; transition: 0.3s; }
+        .footer-link:active { transform: scale(0.95); }
+        .footer-link b { color: var(--accent); font-weight: 700; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="toast"></div>
+
+    <div class="card">
+        <div class="logo-box">
+            <i class="fa-solid fa-paper-plane"></i>
+        </div>
+        <h2>GENIUS LOGIN</h2>
+        <p class="subtitle">Enter your cockpit credentials</p>
+
+        <div class="input-group">
+            <i class="fa-solid fa-envelope"></i>
+            <input type="email" id="login-email" placeholder="Email Address">
+        </div>
+
+        <div class="input-group">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="login-pass" placeholder="Password">
+            <div class="eye-btn" onclick="togglePassword()">
+                <i class="fa-solid fa-eye" id="eyeIcon"></i>
+            </div>
+        </div>
+
+        <button id="btn" class="login-btn" onclick="handleLogin()">
+            <span id="btn-text">Start Session</span>
+            <div id="btn-loader" class="loader-content">
+                <i class="fa-solid fa-plane-up plane-spinner"></i>
+            </div>
+        </button>
+        
+        <p class="footer-link" onclick="location.href='index.html'">
+            New pilot? <b>Create Account</b>
+        </p>
+    </div>
+
+    <script>
+        var _supa;
+        window.onload = function() { _supa = getClient(); };
+
+        function togglePassword() {
+            var input = document.getElementById('login-pass');
+            var icon = document.getElementById('eyeIcon');
+            var btn = icon.parentElement;
+
+            if (input.type === "password") {
+                input.type = "text";
+                icon.className = "fa-solid fa-eye-slash";
+                btn.classList.add('active');
+            } else {
+                input.type = "password";
+                icon.className = "fa-solid fa-eye";
+                btn.classList.remove('active');
+            }
+        }
+
+        function showToast(msg, isSuccess) {
+            const t = document.getElementById('toast');
+            t.innerHTML = isSuccess ? `<i class="fa-solid fa-circle-check" style="color:var(--success)"></i> ${msg}` : `<i class="fa-solid fa-circle-xmark" style="color:var(--error)"></i> ${msg}`;
+            t.style.background = "rgba(10, 10, 10, 0.95)";
+            t.classList.add("show");
+            setTimeout(() => t.classList.remove("show"), 3000);
+        }
+
+        async function handleLogin() {
+            var email = document.getElementById('login-email').value.trim();
+            var pass = document.getElementById('login-pass').value;
+            var btn = document.getElementById('btn');
+            var btnText = document.getElementById('btn-text');
+            var btnLoader = document.getElementById('btn-loader');
+
+            if (!email || !pass) return showToast("Credentials required", false);
+
+            // Start Flight Animation
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoader.style.display = 'flex';
+
+            try {
+                const { data, error } = await _supa
+                    .from('profiles')
+                    .select('*')
+                    .eq('email', email)
+                    .eq('password', pass)
+                    .maybeSingle();
+
+                if (error || !data) {
+                    showToast("Invalid Credentials", false);
+                    resetBtn();
+                    return;
+                }
+
+                if (data.otp_status === 'PENDING') {
+                    showToast("Verify your account first!", false);
+                    localStorage.setItem('user_email', email);
+                    setTimeout(() => { location.href='otp.html'; }, 1500);
+                    return;
+                }
+
+                const newSessId = "sess_" + Math.random().toString(36).substr(2, 9) + Date.now();
+                
+                const { error: sessError } = await _supa
+                    .from('profiles')
+                    .update({ current_session_id: newSessId })
+                    .eq('email', email);
+
+                if (sessError) {
+                    showToast("Session Error", false);
+                    resetBtn();
+                    return;
+                }
+
+                showToast("Cleared for Takeoff!", true);
+                localStorage.setItem('user_email', data.email);
+                localStorage.setItem('user_id', data.id);
+                localStorage.setItem('my_session_id', newSessId);
+                
+                setTimeout(() => { location.href='home.html'; }, 1500);
+
+            } catch (err) {
+                showToast("System Offline", false);
+                resetBtn();
+            }
+
+            function resetBtn() {
+                btn.disabled = false;
+                btnText.style.display = 'block';
+                btnLoader.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

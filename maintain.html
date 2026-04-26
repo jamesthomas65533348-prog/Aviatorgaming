@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>System Lockdown - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script> 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            --primary: #007bff; 
+            --bg: #050505; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --success: #00ffa3;
+            --error: #ff003c;
+            --gold: #ffcc00;
+        }
+
+        /* --- UI LOCK PROTOCOL --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; outline: none; }
+
+        body {
+            background: var(--bg);
+            color: white; font-family: 'Inter', sans-serif;
+            padding: 25px 20px; min-height: 100vh; overflow-x: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* --- CYBER GRID BACKGROUND --- */
+        .cyber-grid {
+            position: fixed; inset: 0;
+            background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                              linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 40px 40px;
+            perspective: 500px;
+            z-index: -1;
+            mask-image: radial-gradient(circle at 50% 50%, black, transparent 80%);
+        }
+        .grid-plane {
+            position: absolute; inset: 0;
+            transform: rotateX(60deg) translateY(0);
+            animation: gridFlow 20s linear infinite;
+            background: inherit;
+        }
+        @keyframes gridFlow { from { transform: rotateX(60deg) translateY(0); } to { transform: rotateX(60deg) translateY(40px); } }
+
+        /* --- LIVE HEARTBEAT BAR --- */
+        .monitor-bar {
+            width: 100%; padding: 18px 20px; border-radius: 20px; margin-bottom: 25px;
+            display: flex; align-items: center; gap: 15px;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(10px);
+            border: 1px solid var(--border); transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .heartbeat {
+            width: 12px; height: 12px; border-radius: 50%; position: relative;
+        }
+        .heartbeat::after {
+            content: ''; position: absolute; inset: -5px; border-radius: 50%;
+            background: inherit; opacity: 0.4; animation: ripple 1.5s infinite;
+        }
+        @keyframes ripple { 0% { transform: scale(1); opacity: 0.4; } 100% { transform: scale(3); opacity: 0; } }
+
+        .monitor-info { flex: 1; }
+        .monitor-label { font-size: 0.55rem; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #555; }
+        .monitor-status { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.5px; }
+
+        /* Monitor States */
+        .state-lock { border-color: rgba(255, 0, 60, 0.2); }
+        .state-lock .heartbeat { background: var(--error); box-shadow: 0 0 15px var(--error); }
+        .state-lock .monitor-status { color: var(--error); }
+
+        .state-ready { border-color: rgba(0, 255, 163, 0.2); }
+        .state-ready .heartbeat { background: var(--success); box-shadow: 0 0 15px var(--success); }
+        .state-ready .monitor-status { color: var(--success); }
+
+        /* --- HERO CARD --- */
+        .hangar-card {
+            background: var(--glass); border: 1px solid var(--border);
+            border-radius: 35px; padding: 45px 25px; text-align: center;
+            backdrop-filter: blur(20px); box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            margin-bottom: 25px; animation: hangarFade 0.8s ease-out;
+        }
+        @keyframes hangarFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .wrench-hub {
+            width: 90px; height: 90px; margin: 0 auto 25px;
+            border-radius: 25px; display: flex; align-items: center; justify-content: center;
+            background: rgba(255, 204, 0, 0.05); border: 1px solid rgba(255, 204, 0, 0.2);
+            position: relative;
+        }
+        .wrench-hub i { font-size: 2.2rem; color: var(--gold); animation: maintenanceRotate 3s infinite ease-in-out; }
+        @keyframes maintenanceRotate { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(15deg); } }
+
+        h1 { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 15px; text-transform: uppercase; }
+        .hero-desc { color: #888; font-size: 0.85rem; line-height: 1.7; font-weight: 500; }
+
+        /* --- SYSTEM INFO --- */
+        .info-box {
+            background: var(--glass); border: 1px solid var(--border);
+            border-radius: 24px; padding: 25px; backdrop-filter: blur(10px);
+        }
+        .info-header {
+            display: flex; align-items: center; gap: 12px; font-weight: 900;
+            margin-bottom: 15px; font-size: 0.75rem; color: var(--primary);
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+        .info-header i { font-size: 1rem; }
+        .info-box p { color: #666; font-size: 0.8rem; line-height: 1.8; font-weight: 600; }
+
+        /* --- DYNAMIC ACCESS BUTTON --- */
+        .btn-access {
+            width: 100%; padding: 18px; border-radius: 22px; border: none;
+            background: #fff; color: #000; font-weight: 900; font-size: 0.85rem; 
+            margin-bottom: 30px; letter-spacing: 1px; display: none;
+            box-shadow: 0 15px 30px rgba(255,255,255,0.1);
+            animation: btnPulse 2s infinite;
+        }
+        @keyframes btnPulse { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); } 70% { box-shadow: 0 0 0 15px rgba(255,255,255,0); } 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); } }
+
+        .bouncy:active { transform: scale(0.96); transition: 0.1s; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div class="cyber-grid"><div class="grid-plane"></div></div>
+
+    <div id="status-container" class="monitor-bar state-lock">
+        <div class="heartbeat"></div>
+        <div class="monitor-info">
+            <span class="monitor-label">Relay Status</span>
+            <div id="status-msg" class="monitor-status">HANGAR LOCKDOWN ACTIVE</div>
+        </div>
+    </div>
+
+    <button id="entry-btn" class="btn-access bouncy" onclick="location.href='login.html'">
+        <i class="fa-solid fa-bolt-lightning" style="margin-right:10px"></i> RE-ENTER TERMINAL
+    </button>
+
+    <div class="hangar-card">
+        <div class="wrench-hub">
+            <i class="fa-solid fa-toolbox"></i>
+        </div>
+        <h1>Maintenance Mode</h1>
+        <p class="hero-desc">The Aviator Genius hangar is currently undergoing structural reinforcement and security patching. All flight signals are paused to protect pilot assets.</p>
+    </div>
+
+    <div class="info-box">
+        <div class="info-header"><i class="fa-solid fa-shield-halved"></i> Logistics Protocol</div>
+        <p>
+            Scheduled maintenance ensures your fuel units and flight data remain synchronized. System encryption is being upgraded to AES-4096. This page will auto-refresh once engineers restore signal.
+        </p>
+    </div>
+
+    <script>
+        var _supa;
+        const CONFIG_ID = "f4c6da92-d822-4e30-8a93-b90c7df78390";
+
+        window.onload = async function() {
+            _supa = getClient();
+            checkLiveStatus();
+            // Polling every 8 seconds for a "Heartbeat" check
+            setInterval(checkLiveStatus, 8000);
+        };
+
+        async function checkLiveStatus() {
+            try {
+                const { data } = await _supa.from('system_config').select('maintenance_mode').eq('id', CONFIG_ID).maybeSingle();
+                
+                const container = document.getElementById('status-container');
+                const msg = document.getElementById('status-msg');
+                const btn = document.getElementById('entry-btn');
+
+                if (data && data.maintenance_mode === false) {
+                    // READY STATE
+                    container.className = "monitor-bar state-ready";
+                    msg.innerText = "SIGNAL RESTORED - HUB OPEN";
+                    btn.style.display = "block";
+                } else {
+                    // LOCK STATE
+                    container.className = "monitor-bar state-lock";
+                    msg.innerText = "HANGAR LOCKDOWN ACTIVE";
+                    btn.style.display = "none";
+                }
+            } catch (e) {
+                console.log("Syncing...");
+            }
+        }
+
+        document.addEventListener('contextmenu', e => e.preventDefault());
+    </script>
+</body>
+</html>

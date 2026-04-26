@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Loadout - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://checkout.flutterwave.com/v3.js"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --accent: #ff003c; 
+            --bg: #030303; 
+            --glass: rgba(255, 255, 255, 0.02);
+            --border: rgba(255, 255, 255, 0.07);
+            --success: #00ffa3; 
+            --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* --- ANTI-COPY & HIGHLIGHT PROTOCOL --- */
+        * { 
+            -webkit-tap-highlight-color: transparent !important; 
+            box-sizing: border-box; 
+            font-family: 'Inter', sans-serif;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+        }
+        input { 
+            user-select: auto !important; 
+            -webkit-user-select: auto !important; 
+            outline: none !important;
+        }
+
+        body { 
+            background: var(--bg); color: white; margin: 0; min-height: 100vh;
+            display: flex; flex-direction: column; overflow: hidden;
+            background-image: 
+                linear-gradient(to bottom, rgba(255, 0, 60, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 0% 0%, rgba(255, 0, 60, 0.03) 0%, transparent 50%);
+        }
+
+        /* --- DIAGONAL SPEED HEADER --- */
+        .header-strip {
+            height: 120px; background: #080808; position: relative;
+            clip-path: polygon(0 0, 100% 0, 100% 70%, 0 100%);
+            display: flex; align-items: center; padding: 0 25px;
+            border-bottom: 1px solid var(--accent);
+        }
+        .nav-back {
+            width: 45px; height: 45px; background: var(--accent);
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 5px 15px rgba(255, 0, 60, 0.3);
+        }
+
+        /* --- FLOATING LOADOUT CARD --- */
+        .loadout-card {
+            margin: -30px 20px 0; background: #0a0a0a;
+            border: 1px solid var(--border); border-radius: 30px;
+            padding: 30px 20px; position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+        .loadout-header { margin-bottom: 25px; }
+        .loadout-header h2 { margin: 0; font-size: 1.8rem; font-weight: 900; letter-spacing: -1px; }
+        .loadout-header span { font-size: 0.6rem; color: var(--accent); font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+
+        /* --- TACTICAL INPUT --- */
+        .input-module {
+            background: var(--glass); border: 1px solid var(--border);
+            border-radius: 18px; padding: 15px 20px; margin-bottom: 15px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .label-group { display: flex; flex-direction: column; }
+        .label-group small { font-size: 0.55rem; color: #444; font-weight: 800; text-transform: uppercase; }
+        .label-group strong { font-size: 1.2rem; color: var(--accent); }
+        
+        input[type="number"] {
+            background: transparent; border: none; color: white;
+            font-size: 1.8rem; font-weight: 900; width: 150px; text-align: right;
+        }
+
+        /* --- HORIZONTAL QUICK-SELECT --- */
+        .quick-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 30px;
+        }
+        .q-btn {
+            background: #111; border: 1px solid var(--border); padding: 12px;
+            border-radius: 12px; text-align: center; font-size: 0.7rem; font-weight: 800;
+            transition: 0.2s;
+        }
+        .q-btn:active { background: var(--accent); border-color: transparent; transform: scale(0.95); }
+
+        /* --- GLOW BUTTON --- */
+        .deploy-btn {
+            width: 100%; padding: 22px; border-radius: 20px; border: none;
+            background: linear-gradient(90deg, #ff003c, #bc002c);
+            color: white; font-weight: 900; text-transform: uppercase;
+            font-size: 0.9rem; letter-spacing: 1px;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+        }
+
+        /* --- NOTIFICATION SYSTEM --- */
+        #alert {
+            position: fixed; bottom: -100px; left: 20px; right: 20px;
+            background: #111; border: 1px solid var(--border); padding: 18px;
+            border-radius: 20px; z-index: 1000; display: flex; align-items: center;
+            gap: 12px; transition: 0.5s var(--spring);
+        }
+        #alert.show { bottom: 30px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="alert">
+        <div class="status-dot" id="a-dot"></div>
+        <span id="a-msg" style="font-weight: 800; font-size: 0.8rem; letter-spacing: 0.5px;"></span>
+    </div>
+
+    <div class="header-strip">
+        <div class="nav-back" onclick="location.href='home.html'">
+            <i class="fa-solid fa-arrow-left-long"></i>
+        </div>
+    </div>
+
+    <div class="loadout-card">
+        <div class="loadout-header">
+            <span>Operational Refill</span>
+            <h2>Refuel Tank</h2>
+        </div>
+
+        <div class="input-module">
+            <div class="label-group">
+                <small>Currency</small>
+                <strong>NGN</strong>
+            </div>
+            <input type="number" id="amount" placeholder="000">
+        </div>
+
+        <div class="quick-grid">
+            <div class="q-btn" onclick="setAmt(500)">500</div>
+            <div class="q-btn" onclick="setAmt(1000)">1,000</div>
+            <div class="q-btn" onclick="setAmt(2500)">2,500</div>
+            <div class="q-btn" onclick="setAmt(5000)">5,000</div>
+            <div class="q-btn" onclick="setAmt(10000)">10,000</div>
+            <div class="q-btn" onclick="setAmt(20000)">20,000</div>
+        </div>
+
+        <button class="deploy-btn" onclick="triggerPayment()">
+            <i class="fa-solid fa-bolt-lightning"></i> Deploy Credits
+        </button>
+
+        <div style="margin-top: 25px; text-align: center; opacity: 0.3; font-size: 0.55rem; font-weight: 900; letter-spacing: 2px;">
+            SECURED_BY_FLUTTERWAVE // V.2.0.4
+        </div>
+    </div>
+
+    <script>
+        var _supa;
+        var userEmail = localStorage.getItem('user_email');
+
+        window.onload = function() { _supa = getClient(); };
+
+        function setAmt(val) {
+            document.getElementById('amount').value = val;
+        }
+
+        function triggerPayment() {
+            const amt = document.getElementById('amount').value;
+            if(!amt || amt < 100) return notify("MINIMUM_THRESHOLD_100", false);
+            payWithFlutterwave(amt);
+        }
+
+        function payWithFlutterwave(amt) {
+            FlutterwaveCheckout({
+                public_key: "FLWPUBK-4b9baac52d43aa02765923e58050f152-X",
+                tx_ref: "TX-" + Date.now(),
+                amount: amt,
+                currency: "NGN",
+                customer: { email: userEmail },
+                customizations: {
+                    title: "Aviator Genius",
+                    description: "Refill Balance",
+                    logo: "https://img.icons8.com/fluency/96/lightning-bolt.png",
+                },
+                callback: function (data) {
+                    notify("TRANSACTION_VERIFIED", true);
+                    setTimeout(() => { location.href = 'home.html'; }, 2500);
+                },
+                onclose: function() { notify("DEPLOYMENT_ABORTED", false); }
+            });
+        }
+
+        function notify(msg, success) {
+            const box = document.getElementById('alert');
+            const dot = document.getElementById('a-dot');
+            const txt = document.getElementById('a-msg');
+            
+            txt.innerText = msg;
+            dot.style.background = success ? 'var(--success)' : 'var(--accent)';
+            txt.style.color = success ? 'var(--success)' : 'white';
+            
+            box.classList.add('show');
+            setTimeout(() => box.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+</html>

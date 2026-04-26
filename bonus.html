@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quantum Signal - Aviator Genius</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --accent: #ff003c; 
+            --bg: #020205; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --success: #00ffa3;
+            --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* --- ANTI-COPY & HIGHLIGHT PROTOCOL --- */
+        * {
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+            box-sizing: border-box;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body { 
+            background: var(--bg);
+            color: white; margin: 0; padding: 0; overflow: hidden; height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        .nebula {
+            position: fixed; inset: 0;
+            background: 
+                radial-gradient(circle at 80% 20%, rgba(255, 0, 60, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 20% 80%, rgba(0, 255, 163, 0.05) 0%, transparent 40%);
+            z-index: -1;
+        }
+
+        /* --- FLOATING SYSTEM NOTE --- */
+        .system-note {
+            position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border);
+            padding: 8px 15px; border-radius: 50px; font-size: 0.6rem;
+            color: #555; white-space: nowrap; font-weight: 700;
+            letter-spacing: 0.5px; backdrop-filter: blur(5px);
+            animation: float 4s ease-in-out infinite;
+        }
+        @keyframes float { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -5px); } }
+
+        /* --- TOP NAVIGATION BAR --- */
+        .top-nav {
+            padding: 20px; display: flex; align-items: center;
+            border-bottom: 1px solid var(--border); background: rgba(2, 2, 5, 0.8);
+            backdrop-filter: blur(10px); z-index: 100;
+        }
+        .nav-back-btn {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: var(--glass); border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            color: white; transition: 0.2s;
+        }
+
+        .signal-monitor { padding: 30px 25px 10px; display: flex; justify-content: space-between; align-items: flex-start; }
+        .sig-bars { display: flex; gap: 4px; align-items: flex-end; height: 20px; }
+        .bar { width: 4px; background: var(--border); border-radius: 2px; transition: 0.3s; }
+        
+        /* Bar Colors */
+        .bar.on { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .bar.warning { background: #facc15; box-shadow: 0 0 8px #facc15; }
+        .bar.off { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+        .b1 { height: 6px; } .b2 { height: 10px; } .b3 { height: 14px; } .b4 { height: 20px; }
+
+        /* --- QUANTUM HUB --- */
+        .quantum-hub { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 30px; text-align: center; }
+        .core-orb { position: relative; width: 160px; height: 160px; margin-bottom: 35px; }
+        .orb-ring { position: absolute; inset: 0; border: 2px dashed var(--accent); border-radius: 50%; animation: rotate 12s linear infinite; opacity: 0.3; }
+        .orb-center { position: absolute; inset: 15px; background: rgba(255,0,60,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,0,60,0.2); box-shadow: inset 0 0 30px rgba(255,0,60,0.2); }
+        .orb-icon { font-size: 3rem; color: #fff; filter: drop-shadow(0 0 20px var(--accent)); }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .signal-title { font-size: 2rem; font-weight: 900; letter-spacing: -1px; margin: 0; text-transform: uppercase; }
+        .terminal-box { background: var(--glass); border: 1px solid var(--border); border-radius: 24px; padding: 25px; margin-top: 35px; width: 100%; max-width: 340px; position: relative; }
+        .terminal-box::before { content: "SYSTEM_LOG"; position: absolute; top: -10px; left: 20px; background: var(--accent); font-size: 0.5rem; font-weight: 900; padding: 2px 8px; border-radius: 4px; }
+        .msg-text { font-size: 0.75rem; line-height: 1.6; color: #888; font-weight: 500; margin: 0; }
+
+        .neural-load { width: 100%; height: 4px; background: var(--border); border-radius: 10px; margin-top: 20px; overflow: hidden; }
+        .neural-fill { width: 65%; height: 100%; background: var(--accent); animation: slideLoad 3s ease-in-out infinite; }
+        @keyframes slideLoad { 0% { width: 10%; } 50% { width: 80%; } 100% { width: 10%; } }
+
+        .btn-calibrate { width: 100%; max-width: 340px; padding: 18px; margin-top: 25px; background: #fff; color: #000; border: none; border-radius: 15px; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; }
+        .footer-nav { padding: 25px; text-align: center; }
+        .footer-id { color: #222; font-size: 0.5rem; font-weight: 900; letter-spacing: 2px; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div class="nebula"></div>
+    <div class="system-note">
+        <i class="fa-solid fa-circle-info"></i> Bonus terminal network frequency, not local ISP signal.
+    </div>
+
+    <div class="top-nav">
+        <div class="nav-back-btn" onclick="location.href='home.html'">
+            <i class="fa-solid fa-chevron-left"></i>
+        </div>
+        <div style="flex: 1; text-align: center; font-size: 0.6rem; font-weight: 900; letter-spacing: 2px; color: #444; margin-right: 40px;">
+            SIGNAL_CALIBRATION
+        </div>
+    </div>
+
+    <div class="signal-monitor">
+        <div>
+            <div style="font-size: 0.5rem; font-weight: 900; color: #444; margin-bottom: 5px;">WAVE_STRENGTH</div>
+            <div class="sig-bars" id="bar-container">
+                <div class="bar b1" id="bar1"></div>
+                <div class="bar b2" id="bar2"></div>
+                <div class="bar b3" id="bar3"></div>
+                <div class="bar b4" id="bar4"></div>
+            </div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 0.5rem; font-weight: 900; color: #444; margin-bottom: 5px;">NODE_STATUS</div>
+            <div id="status-text" style="font-size: 0.7rem; font-weight: 900;">INITIALIZING...</div>
+        </div>
+    </div>
+
+    <div class="quantum-hub">
+        <div class="core-orb">
+            <div class="orb-ring"></div>
+            <div class="orb-center">
+                <i class="fa-solid fa-atom orb-icon"></i>
+            </div>
+        </div>
+        <h1 class="signal-title">Signal Leak</h1>
+        <div class="terminal-box">
+            <p class="msg-text">
+                Quantum servers are currently mapping <b>Wave 02</b> frequencies. 
+                Atmospheric interference has slowed the calibration.
+            </p>
+            <div class="neural-load">
+                <div class="neural-fill"></div>
+            </div>
+        </div>
+        <button class="btn-calibrate" onclick="location.href='home.html'">Retry Connection</button>
+    </div>
+
+    <div class="footer-nav"><div class="footer-id">ENCRYPTED_X_GENESIS</div></div>
+
+    <script>
+        function updateNetwork() {
+            const bars = [document.getElementById('bar1'), document.getElementById('bar2'), document.getElementById('bar3'), document.getElementById('bar4')];
+            const status = document.getElementById('status-text');
+            
+            // Randomly pick 0 to 4 bars
+            const level = Math.floor(Math.random() * 5); 
+            
+            // Reset all bars
+            bars.forEach(b => { b.className = b.className.split(' ')[0] + ' ' + b.className.split(' ')[1]; });
+
+            if (level === 0) {
+                status.innerText = "SIGNAL LOST";
+                status.style.color = "var(--accent)";
+                bars[0].classList.add('off'); // Show first bar as red error
+            } else if (level <= 2) {
+                status.innerText = "UNSTABLE";
+                status.style.color = "var(--accent)";
+                for(let i=0; i<level; i++) bars[i].classList.add('warning'); // Yellow for low signal
+            } else {
+                status.innerText = "STABLE";
+                status.style.color = "var(--success)";
+                for(let i=0; i<level; i++) bars[i].classList.add('on'); // Green for high signal
+            }
+        }
+
+        // Change network every 2-4 seconds randomly
+        setInterval(updateNetwork, 2500);
+        updateNetwork();
+
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && (e.key === 'u' || e.key === 's' || e.key === 'c' || e.key === 'a')) e.preventDefault();
+        });
+    </script>
+</body>
+</html>

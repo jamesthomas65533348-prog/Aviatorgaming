@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Join the Elite - Aviator Genius</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { 
+            --accent: #ff003c; 
+            --bg: #050505; 
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        * { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        input { user-select: auto !important; -webkit-user-select: auto !important; }
+
+        body { 
+            background: var(--bg); color: white; display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; margin: 0; overflow: hidden;
+            background-image: radial-gradient(circle at 50% 50%, rgba(255, 0, 60, 0.08) 0%, transparent 70%);
+        }
+
+        .card { 
+            background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 35px 25px; border-radius: 40px; width: 92%; max-width: 400px; 
+            border: 1px solid var(--border); text-align: center; box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        h2 { font-size: 1.8rem; font-weight: 900; margin-bottom: 5px; letter-spacing: -1px; background: linear-gradient(to right, #fff, #888); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        p.subtitle { color: #666; font-size: 0.85rem; margin-bottom: 30px; }
+
+        .input-group { position: relative; margin-bottom: 18px; }
+        .input-group i { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: #444; font-size: 0.9rem; transition: 0.3s; }
+        
+        input { 
+            width: 100%; padding: 16px 20px 16px 50px; border-radius: 18px; border: 1px solid var(--border); 
+            background: rgba(255,255,255,0.02); color: white; font-size: 0.95rem; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--accent); background: rgba(255,255,255,0.05); }
+
+        /* Email Autocomplete Floating Label */
+        #email-suggest {
+            position: absolute; top: -22px; right: 10px; font-size: 0.75rem; color: var(--accent);
+            font-weight: 700; cursor: pointer; display: none; background: rgba(255,0,60,0.15);
+            padding: 2px 12px; border-radius: 10px;
+        }
+
+        /* NIN Container with Verify Button */
+        .nin-box { display: flex; gap: 8px; align-items: center; }
+        .verify-btn { 
+            padding: 16px 15px; border-radius: 15px; background: #1a1a1a; color: #555; 
+            font-size: 0.75rem; font-weight: 900; cursor: pointer; border: 1px solid var(--border);
+            transition: 0.3s; white-space: nowrap;
+        }
+        .verify-btn.active { background: var(--accent); color: white; border-color: transparent; box-shadow: 0 5px 15px rgba(255,0,60,0.2); }
+
+        .main-btn { 
+            width: 100%; padding: 18px; background: var(--accent); color: white; border: none; border-radius: 20px; 
+            font-size: 1rem; font-weight: 800; cursor: pointer; transition: 0.3s; margin-top: 10px;
+            opacity: 0.2; pointer-events: none; /* Locked by default */
+        }
+        .main-btn.unlocked { opacity: 1; pointer-events: auto; box-shadow: 0 10px 25px rgba(255, 0, 60, 0.3); }
+
+        #toast { 
+            position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%); 
+            padding: 16px 25px; border-radius: 25px; z-index: 9999; font-weight: 600; font-size: 0.85rem; color: white;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);
+            transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        #toast.show { bottom: 40px; }
+
+        .footer-link { margin-top: 25px; font-size: 0.85rem; color: #555; cursor: pointer; }
+        .footer-link span { color: var(--accent); font-weight: 700; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="toast"></div>
+
+    <div class="card">
+        <h2>GENIUS SIGNUP</h2>
+        <p class="subtitle">Join the professional aviator network</p>
+        
+        <div class="input-group">
+            <span id="email-suggest" onclick="completeEmail()">Complete @gmail.com?</span>
+            <i class="fa-solid fa-envelope"></i>
+            <input type="email" id="email" placeholder="Email Address" oninput="suggestEmail(this)">
+        </div>
+        
+        <div class="input-group">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="pass" placeholder="Password">
+        </div>
+        
+        <div class="input-group">
+            <i class="fa-solid fa-shield-halved"></i>
+            <input type="password" id="confirm_pass" placeholder="Confirm Password">
+        </div>
+        
+        <div class="input-group nin-box">
+            <div style="position:relative; flex:1;">
+                <i class="fa-solid fa-id-card"></i>
+                <input type="text" id="nin" placeholder="NIN (11 Digits)" maxlength="11" oninput="checkNIN(this)">
+            </div>
+            <div id="v-btn" class="verify-btn" onclick="verifyNIN()">VERIFY</div>
+        </div>
+
+        <button id="signup-btn" class="main-btn" onclick="doSignUp()">
+            Create Account
+        </button>
+        
+        <p class="footer-link" onclick="location.href='login.html'">
+            Already a member? <span>Login</span>
+        </p>
+    </div>
+
+    <script>
+        (function(){ emailjs.init("GeCipLr0kFPCN8feN"); })();
+
+        let isVerified = false;
+
+        function showToast(msg, isSuccess) {
+            const t = document.getElementById('toast');
+            t.innerHTML = isSuccess ? `<i class="fa-solid fa-circle-check" style="color:#00ffa3"></i> ${msg}` : `<i class="fa-solid fa-triangle-exclamation" style="color:#ff2d55"></i> ${msg}`;
+            t.style.background = "rgba(15, 15, 15, 0.95)";
+            t.classList.add("show");
+            setTimeout(() => t.classList.remove("show"), 3000);
+        }
+
+        // Email Suggestions
+        function suggestEmail(el) {
+            const s = document.getElementById('email-suggest');
+            if (el.value.length > 2 && !el.value.includes('@')) {
+                s.style.display = 'block';
+                s.innerText = `Finish as ${el.value}@gmail.com?`;
+            } else {
+                s.style.display = 'none';
+            }
+        }
+        function completeEmail() {
+            const el = document.getElementById('email');
+            el.value = el.value.split('@')[0] + "@gmail.com";
+            document.getElementById('email-suggest').style.display = 'none';
+        }
+
+        // NIN Sensitive Bot
+        function checkNIN(el) {
+            const raw = el.value;
+            el.value = raw.replace(/\D/g, ''); // Instantly remove alphabets
+            
+            if (raw !== el.value) showToast("NIN must be digits only!", false);
+            
+            const vBtn = document.getElementById('v-btn');
+            if (el.value.length === 11) {
+                vBtn.classList.add('active');
+            } else {
+                vBtn.classList.remove('active');
+                document.getElementById('signup-btn').classList.remove('unlocked');
+                isVerified = false;
+            }
+        }
+
+        function verifyNIN() {
+            const n = document.getElementById('nin').value;
+            if (n.length !== 11) return showToast("Enter 11 digits first", false);
+
+            // Sensitive Pattern Bot
+            const badPatterns = ["123456", "012345", "987654", "111111", "222222", "121212", "101010"];
+            const isFake = badPatterns.some(p => n.includes(p));
+
+            if (isFake) return showToast("Invalid NIN pattern!", false);
+
+            isVerified = true;
+            showToast("NIN Validated", true);
+            document.getElementById('signup-btn').classList.add('unlocked');
+            document.getElementById('v-btn').innerText = "VALID";
+        }
+
+        async function doSignUp() {
+            if (!isVerified) return showToast("Please verify NIN first", false);
+
+            const email = document.getElementById('email').value.trim();
+            const pass = document.getElementById('pass').value;
+            const cPass = document.getElementById('confirm_pass').value;
+            const nin = document.getElementById('nin').value;
+            const btn = document.getElementById('signup-btn');
+            const _supa = getClient();
+
+            // Strict blocking for empty or short passwords
+            if (!email || !pass || !nin) return showToast("All fields are required!", false);
+            if (pass.length < 4) return showToast("Password is too short!", false);
+            if (pass !== cPass) return showToast("Passwords do not match!", false);
+
+            btn.disabled = true;
+            btn.innerText = "AUTHENTICATING...";
+
+            try {
+                // Check for existing account (Clean block)
+                const { data: userExists } = await _supa.from('profiles').select('email').eq('email', email).maybeSingle();
+                
+                if (userExists) {
+                    showToast("Account already exists!", false);
+                    btn.disabled = false;
+                    btn.innerText = "Create Account";
+                    return;
+                }
+
+                const otp = Math.floor(100000 + Math.random() * 900000);
+
+                await emailjs.send('service_huev2pt', 'template_r50pcwk', {
+                    email: email, 
+                    passcode: otp 
+                });
+
+                const { error: dbErr } = await _supa.from('profiles').insert([{ 
+                    email, password: pass, nin, 
+                    profile_code: Math.random().toString(36).substring(2, 10).toUpperCase(),
+                    balance: 0, otp_status: 'PENDING'
+                }]);
+
+                if (dbErr) throw dbErr;
+
+                localStorage.setItem('pending_otp', otp);
+                localStorage.setItem('user_email', email);
+
+                showToast("Verification Code Sent!", true);
+                setTimeout(() => location.href='otp.html', 2000);
+
+            } catch (e) {
+                showToast("System error. Try later.", false);
+                btn.disabled = false;
+                btn.innerText = "Create Account";
+            }
+        }
+    </script>
+</body>
+</html>
