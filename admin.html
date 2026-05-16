@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Admin Panel - Event Claims</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+
+        :root{
+            --accent:#ff003c;
+            --green:#00d084;
+            --bg:#050505;
+            --card:#0d0d0d;
+            --glass:rgba(255,255,255,0.03);
+            --border:rgba(255,255,255,0.08);
+        }
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:Inter,sans-serif;
+            -webkit-tap-highlight-color:transparent;
+        }
+
+        body{
+            background:var(--bg);
+            color:white;
+            min-height:100vh;
+            overflow-x:hidden;
+        }
+
+        body::before{
+            content:"";
+            position:fixed;
+            inset:0;
+            z-index:-1;
+            opacity:0.05;
+
+            background-image:
+                url('sporty.png'),
+                url('aviator.png');
+
+            background-repeat:no-repeat;
+
+            background-size:
+                180px,
+                180px;
+
+            background-position:
+                left top,
+                right bottom;
+        }
+
+        .header{
+            padding:22px;
+            border-bottom:1px solid var(--border);
+
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+
+            backdrop-filter:blur(10px);
+            background:rgba(255,255,255,0.02);
+
+            position:sticky;
+            top:0;
+            z-index:100;
+        }
+
+        .title{
+            font-size:1rem;
+            font-weight:900;
+            letter-spacing:1px;
+        }
+
+        .count-box{
+            background:rgba(255,0,60,0.12);
+            border:1px solid rgba(255,0,60,0.2);
+            color:#ff4d73;
+
+            padding:8px 14px;
+            border-radius:14px;
+
+            font-size:0.75rem;
+            font-weight:800;
+        }
+
+        .container{
+            padding:18px;
+        }
+
+        .claim-card{
+            background:var(--card);
+            border:1px solid var(--border);
+            border-radius:26px;
+
+            padding:18px;
+            margin-bottom:18px;
+
+            backdrop-filter:blur(10px);
+
+            animation:fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn{
+            from{
+                opacity:0;
+                transform:translateY(10px);
+            }
+
+            to{
+                opacity:1;
+                transform:translateY(0);
+            }
+        }
+
+        .top-row{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:18px;
+        }
+
+        .status{
+            padding:8px 12px;
+            border-radius:999px;
+            font-size:0.7rem;
+            font-weight:800;
+            letter-spacing:1px;
+        }
+
+        .pending{
+            background:rgba(255,170,0,0.15);
+            color:#ffaa00;
+        }
+
+        .approved{
+            background:rgba(0,208,132,0.15);
+            color:var(--green);
+        }
+
+        .info{
+            margin-bottom:14px;
+        }
+
+        .label{
+            font-size:0.65rem;
+            color:#777;
+            margin-bottom:5px;
+            text-transform:uppercase;
+            letter-spacing:1px;
+            font-weight:700;
+        }
+
+        .value{
+            font-size:0.95rem;
+            font-weight:800;
+            word-break:break-word;
+        }
+
+        .approve-btn{
+            width:100%;
+            border:none;
+            border-radius:18px;
+
+            padding:16px;
+
+            background:var(--green);
+            color:black;
+
+            font-weight:900;
+            font-size:0.9rem;
+
+            cursor:pointer;
+        }
+
+        .approve-btn:active{
+            transform:scale(0.98);
+        }
+
+        .empty{
+            text-align:center;
+            padding:80px 20px;
+            color:#777;
+        }
+
+        .empty i{
+            font-size:4rem;
+            margin-bottom:20px;
+            opacity:0.4;
+        }
+
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+
+        <div class="title">
+            EVENT ADMIN PANEL
+        </div>
+
+        <div class="count-box" id="claim-count">
+            0 Pending
+        </div>
+
+    </div>
+
+    <div class="container" id="claims-container">
+
+        <div class="empty">
+            <i class="fa-solid fa-box-open"></i>
+            <p>Loading requests...</p>
+        </div>
+
+    </div>
+
+    <script>
+
+        let _supa;
+
+        window.onload = async function(){
+
+            _supa = getClient();
+
+            loadClaims();
+        };
+
+        // =========================
+        // LOAD CLAIMS
+        // =========================
+
+        async function loadClaims(){
+
+            const container =
+                document.getElementById('claims-container');
+
+            const countBox =
+                document.getElementById('claim-count');
+
+            const { data, error } = await _supa
+                .from('event_claims')
+                .select('*')
+                .eq('status', 'PENDING')
+                .order('id', { ascending:false });
+
+            if(error){
+
+                container.innerHTML = `
+                    <div class="empty">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                        <p>Failed to load requests</p>
+                    </div>
+                `;
+
+                return;
+            }
+
+            countBox.innerHTML =
+                `${data.length} Pending`;
+
+            if(data.length === 0){
+
+                container.innerHTML = `
+                    <div class="empty">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <p>No pending requests</p>
+                    </div>
+                `;
+
+                return;
+            }
+
+            container.innerHTML = "";
+
+            data.forEach(claim => {
+
+                container.innerHTML += `
+
+                    <div class="claim-card"
+                         id="claim-${claim.id}">
+
+                        <div class="top-row">
+
+                            <div style="
+                                font-weight:900;
+                                font-size:0.9rem;
+                            ">
+                                Reward Request
+                            </div>
+
+                            <div class="status pending">
+                                PENDING
+                            </div>
+
+                        </div>
+
+                        <div class="info">
+
+                            <div class="label">
+                                User Email
+                            </div>
+
+                            <div class="value">
+                                ${claim.email || 'No email'}
+                            </div>
+
+                        </div>
+
+                        <div class="info">
+
+                            <div class="label">
+                                SportyBet Phone
+                            </div>
+
+                            <div class="value">
+                                ${claim.sporty_phone}
+                            </div>
+
+                        </div>
+
+                        <div class="info">
+
+                            <div class="label">
+                                Requested Amount
+                            </div>
+
+                            <div class="value">
+                                ₦${Number(claim.selected_amount)
+                                    .toLocaleString()}
+                            </div>
+
+                        </div>
+
+                        <div class="info">
+
+                            <div class="label">
+                                Actual Reward Won
+                            </div>
+
+                            <div class="value"
+                                 style="color:var(--green)">
+                                ₦${Number(claim.actual_won)
+                                    .toLocaleString()}
+                            </div>
+
+                        </div>
+
+                        <button class="approve-btn"
+                                onclick="approveUser(
+                                    '${claim.id}',
+                                    '${claim.user_id}',
+                                    '${claim.actual_won}'
+                                )">
+
+                            <i class="fa-solid fa-circle-check"></i>
+                            Approve User
+
+                        </button>
+
+                    </div>
+
+                `;
+            });
+        }
+
+        // =========================
+        // APPROVE USER
+        // =========================
+
+        async function approveUser(claimId, userId, wonAmount){
+
+            const confirmApprove = confirm(
+                "Approve this reward request?"
+            );
+
+            if(!confirmApprove) return;
+
+            // UPDATE STATUS
+
+            const { error:updateError } = await _supa
+                .from('event_claims')
+                .update({
+                    status:'DISBURSED'
+                })
+                .eq('id', claimId);
+
+            if(updateError){
+
+                alert("Failed to approve user");
+
+                return;
+            }
+
+            // OPTIONAL:
+            // ADD MONEY TO USER BALANCE
+
+            const { data:userData } = await _supa
+                .from('profiles')
+                .select('balance')
+                .eq('id', userId)
+                .single();
+
+            if(userData){
+
+                const newBalance =
+                    Number(userData.balance || 0)
+                    + Number(wonAmount);
+
+                await _supa
+                    .from('profiles')
+                    .update({
+                        balance:newBalance
+                    })
+                    .eq('id', userId);
+            }
+
+            // REMOVE CARD INSTANTLY
+
+            const card =
+                document.getElementById(`claim-${claimId}`);
+
+            if(card){
+
+                card.remove();
+            }
+
+            // RELOAD COUNT
+
+            loadClaims();
+
+            alert("User approved successfully");
+        }
+
+    </script>
+
+</body>
+</html>
